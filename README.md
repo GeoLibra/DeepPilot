@@ -1,0 +1,170 @@
+# DeepPilot
+
+DeepPilot is a full-stack research assistant. It takes a user question, generates focused search queries, gathers source-backed web context, reflects on missing information, and produces a cited final answer with optional visual blocks.
+
+## Stack
+
+- Frontend: React, Vite, TypeScript, Tailwind CSS, shadcn/ui
+- Backend: Python, LangGraph, FastAPI, uv
+- Models: OpenAI-compatible model APIs configured in `backend/config.yaml`
+- Default model: `deepseek-v4-pro` through NVIDIA Integrate
+- Local dev: Vite hot reload plus LangGraph dev server reload
+
+## Project Structure
+
+```text
+.
+├── frontend/              # React frontend
+├── backend/               # LangGraph/FastAPI backend
+├── Dockerfile             # Combined frontend/backend image
+├── docker-compose.yml     # Local production-style services
+└── Makefile               # Install and development commands
+```
+
+## Environment
+
+Copy the example file and add your keys:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Required:
+
+```bash
+NVIDIA_API_KEY=your_nvidia_integrate_key
+WEB_RESEARCH_API_KEY=your_web_research_key
+```
+
+Optional:
+
+```bash
+OPENAI_API_KEY=your_openai_key
+LANGSMITH_API_KEY=your_langsmith_key
+```
+
+Notes:
+
+- `NVIDIA_API_KEY` is used by NVIDIA Integrate models such as `kimi-k2.6`, DeepSeek, GLM, and Minimax.
+- `OPENAI_API_KEY` is used by OpenAI official models such as `gpt-5.5`.
+- `WEB_RESEARCH_API_KEY` is used by the web research adapter that gathers grounded source context.
+- Model options are loaded from `backend/config.yaml`.
+
+## Local Development
+
+Prerequisites:
+
+- Node.js 20+
+- Python 3.11+
+- uv
+
+Install all dependencies:
+
+```bash
+make install
+```
+
+Start frontend and backend together:
+
+```bash
+make dev
+```
+
+Default local URLs:
+
+- Frontend: `http://localhost:5173/app/`
+- Backend API: `http://127.0.0.1:2026`
+- LangGraph Studio: `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2026`
+
+If port `5173` is already in use, Vite will automatically choose the next available port, such as `5174`.
+
+## Hot Reload
+
+`make dev` supports hot reload for normal development:
+
+- Frontend changes under `frontend/src` are handled by Vite HMR and usually update in the browser without a restart.
+- Backend Python changes under `backend/src` are watched by `langgraph dev`; the backend reloads automatically.
+- Dependency changes, `.env` changes, `backend/config.yaml` changes, or Makefile changes may require stopping `make dev` and running it again.
+- If the virtual environment was moved from another directory or command scripts look stale, run `make install` once to rebuild them.
+
+## Troubleshooting
+
+### The frontend opens but models do not load
+
+The frontend calls the backend `/models` endpoint. If the page opens but the model selector is empty or only shows fallback models:
+
+- Confirm `make dev` is still running and the backend started at `http://127.0.0.1:2026`.
+- Open `http://127.0.0.1:2026/models` and check whether it returns model data.
+- Check backend logs for missing environment variables or YAML parsing errors.
+- Confirm model names in `backend/config.yaml` are unique.
+- If you moved the repo directory, run `make install` to rebuild uv environment scripts.
+
+### Could not connect to model provider
+
+If you see an error like this:
+
+```text
+Could not connect to model provider for deepseek-v4-pro at https://integrate.api.nvidia.com/v1. Check network/proxy access and the configured API key.
+```
+
+Check:
+
+- `NVIDIA_API_KEY` is set in `backend/.env` or in the shell that starts the backend.
+- The key has access to the selected model.
+- Your network can reach `https://integrate.api.nvidia.com/v1`.
+- Corporate proxies, VPNs, or firewalls are not blocking outbound HTTPS.
+- For Docker, run `docker compose config` to confirm environment variables are passed into the service.
+
+## CLI Example
+
+```bash
+cd backend
+uv run python examples/cli_research.py "What changed in AI agent frameworks this month?"
+```
+
+Optional arguments:
+
+```bash
+uv run python examples/cli_research.py "Your question" \
+  --initial-queries 3 \
+  --max-loops 2 \
+  --reasoning-model deepseek-v4-pro
+```
+
+## Backend Flow
+
+The main graph is defined in `backend/src/agent/graph.py`:
+
+1. Generate focused search queries from the user question.
+2. Run web research for each query and keep source metadata.
+3. Check whether the gathered context is sufficient.
+4. Generate follow-up queries if there are information gaps.
+5. Compose the final cited answer with the selected model.
+6. Attach optional visual blocks when the answer benefits from them.
+
+## Docker
+
+Build the image:
+
+```bash
+docker build -t deeppilot -f Dockerfile .
+```
+
+Start the services:
+
+```bash
+NVIDIA_API_KEY=<your_nvidia_key> \
+WEB_RESEARCH_API_KEY=<your_web_research_key> \
+LANGSMITH_API_KEY=<your_langsmith_key> \
+docker compose up
+```
+
+Open:
+
+```text
+http://localhost:8123/app/
+```
+
+## License
+
+DeepPilot is released under the MIT License. See `LICENSE` for details.

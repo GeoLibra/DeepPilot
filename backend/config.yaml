@@ -1,0 +1,114 @@
+models:
+  # NVIDIA Kimi K2.6
+  - name: kimi-k2.6
+    display_name: Kimi K2.6 (NVIDIA)
+    use: openai
+    model: moonshotai/kimi-k2.6
+    api_base: https://integrate.api.nvidia.com/v1
+    api_key: $NVIDIA_API_KEY
+    max_tokens: 16384
+    temperature: 1.0
+    top_p: 1.0
+    stream: true
+    supports_thinking: true
+    supports_vision: true
+    when_thinking_enabled:
+      extra_body:
+        chat_template_kwargs:
+          thinking: true
+
+  # NVIDIA DeepSeek V4 Pro
+  - name: deepseek-v4-pro
+    display_name: DeepSeek V4 Pro (NVIDIA)
+    use: openai
+    model: deepseek-ai/deepseek-v4-pro
+    api_base: https://integrate.api.nvidia.com/v1
+    api_key: $NVIDIA_API_KEY
+    max_tokens: 16384
+    temperature: 1.0
+    top_p: 0.95
+    stream: true
+    supports_thinking: false
+    supports_vision: false
+    extra_body:
+      chat_template_kwargs:
+        thinking: false
+
+  # NVIDIA DeepSeek V4 Flash
+  - name: deepseek-v4-flash
+    display_name: DeepSeek V4 Flash (NVIDIA)
+    use: openai
+    model: deepseek-ai/deepseek-v4-flash
+    api_base: https://integrate.api.nvidia.com/v1
+    api_key: $NVIDIA_API_KEY
+    max_tokens: 16384
+    temperature: 1.0
+    top_p: 0.95
+    stream: true
+    supports_thinking: true
+    supports_vision: false
+    when_thinking_enabled:
+      extra_body:
+        chat_template_kwargs:
+          thinking: true
+          reasoning_effort: high
+
+  # NVIDIA GLM 5.1
+  - name: glm-5.1
+    display_name: GLM 5.1 (NVIDIA)
+    use: openai
+    model: z-ai/glm-5.1
+    api_base: https://integrate.api.nvidia.com/v1
+    api_key: $NVIDIA_API_KEY
+    max_tokens: 16384
+    temperature: 1.0
+    top_p: 1.0
+    stream: true
+    supports_thinking: true
+    supports_vision: false
+    when_thinking_enabled:
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: true
+          clear_thinking: false
+
+  # NVIDIA Minimax M2.7
+  - name: minimax-m2.7
+    display_name: Minimax M2.7 (NVIDIA)
+    use: openai
+    model: minimaxai/minimax-m2.7
+    api_base: https://integrate.api.nvidia.com/v1
+    api_key: $NVIDIA_API_KEY
+    max_tokens: 8192
+    temperature: 1.0
+    top_p: 0.95
+    stream: true
+    supports_thinking: false
+    supports_vision: false
+
+  # NVIDIA GPT OSS 120B
+  - name: gpt-oss-120b
+    display_name: GPT OSS 120B (NVIDIA)
+    use: openai
+    model: openai/gpt-oss-120b
+    api_base: https://integrate.api.nvidia.com/v1
+    api_key: $NVIDIA_API_KEY
+    max_tokens: 4096
+    temperature: 1.0
+    top_p: 1.0
+    stream: true
+    supports_thinking: true
+    supports_vision: true
+
+  # OpenAI official model
+  - name: gpt-5.5
+    display_name: GPT-5.5 (OpenAI)
+    use: openai
+    model: gpt-5.5
+    api_key: $OPENAI_API_KEY
+    max_completion_tokens: 8192
+    temperature: 1.0
+    top_p: 1.0
+    stream: true
+    supports_thinking: false
+    supports_vision: false

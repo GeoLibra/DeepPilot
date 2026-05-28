@@ -145,7 +145,7 @@ const HumanMessageBubble: React.FC<HumanMessageBubbleProps> = ({
   const messageText = getMessageText(message);
 
   return (
-    <div className="max-w-[100%] rounded-2xl rounded-br-md border border-teal-700 bg-teal-700 px-4 py-3 text-white shadow-sm sm:max-w-[90%] [&_*]:text-white">
+    <div className="max-w-[100%] rounded-2xl rounded-br-md border border-teal-700 bg-teal-700 px-4 py-3 text-white shadow-sm sm:max-w-[90%] [&_*]:text-white [&_p:last-child]:mb-0">
       <ReactMarkdown components={mdComponents}>{messageText}</ReactMarkdown>
     </div>
   );

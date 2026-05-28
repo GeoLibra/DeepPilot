@@ -72,7 +72,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   const isSubmitDisabled = !internalInputValue.trim() || isLoading;
   const formChrome = hasHistory
-    ? "border-t border-slate-200/80 bg-white/80 px-3 py-3 backdrop-blur md:px-5"
+    ? "bg-transparent px-3 py-3 md:px-5"
     : "bg-transparent p-0";
   const inputChrome = hasHistory
     ? "rounded-2xl rounded-br-md border border-slate-200 bg-white px-4 pt-3 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"

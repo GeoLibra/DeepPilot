@@ -90,16 +90,9 @@ def load_model_configs() -> dict[str, dict[str, Any]]:
 
 
 def list_model_options() -> list[dict[str, Any]]:
-    show_google_models = os.getenv("ENABLE_GOOGLE_MODELS", "").lower() in {
-        "1",
-        "true",
-        "yes",
-    }
     seen: set[str] = set()
     options: list[dict[str, Any]] = []
     for model in load_model_configs().values():
-        if model.get("use") == "google_genai" and not show_google_models:
-            continue
         name = model.get("name")
         if not isinstance(name, str) or name in seen:
             continue

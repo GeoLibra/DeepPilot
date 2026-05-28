@@ -139,6 +139,18 @@ data
     - label Finding 2
       desc Short explanation
 
+Another example (list-grid-compact-card):
+infographic list-grid-compact-card
+data
+  title Category overview
+  cards
+    - label Category A
+      desc Brief summary of category A
+    - label Category B
+      desc Brief summary of category B
+
+IMPORTANT: Always use "- label" for item headings and "desc" for descriptions. Do NOT use "- title" instead of "- label".
+
 Rules:
 - Return at most 3 blocks, and return fewer when fewer are useful.
 - If the answer is short, mostly conversational, or already clear as markdown, return an empty blocks list.

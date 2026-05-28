@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Copy, CopyCheck, Search } from "lucide-react";
 import { InputForm, ModelOption } from "@/components/InputForm";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -40,17 +40,18 @@ const mdComponents: Components = {
     </p>
   ),
   a: ({ className, children, href, ...props }) => (
-    <Badge className="mx-0.5 max-w-full rounded-full border-teal-200 bg-teal-50 px-2 py-0.5 text-xs text-teal-800 hover:bg-teal-100">
-      <a
-        className={cn("break-words text-xs text-teal-800 hover:text-teal-900", className)}
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        {...props}
-      >
-        {children}
-      </a>
-    </Badge>
+    <a
+      className={cn(
+        "inline-flex items-center justify-center relative -top-1.5 text-[9px] font-bold text-teal-700 hover:bg-teal-100 hover:text-teal-900 mx-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-teal-50 border border-teal-200 no-underline transition-colors cursor-pointer",
+        className
+      )}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      {...props}
+    >
+      {children}
+    </a>
   ),
   ul: ({ className, children, ...props }) => (
     <ul className={cn("mb-4 list-disc pl-6 text-slate-700", className)} {...props}>
@@ -131,6 +132,40 @@ const mdComponents: Components = {
   ),
 };
 
+const humanMdComponents: Components = {
+  ...mdComponents,
+  a: ({ className, children, href, ...props }) => (
+    <a
+      className={cn("underline underline-offset-4 hover:text-teal-200 transition-colors", className)}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      {...props}
+    >
+      {children}
+    </a>
+  ),
+};
+
+function processMessageCitations(text: string) {
+  const references: { id: number; label: string; url: string }[] = [];
+  const urlToId = new Map<string, number>();
+
+  const processedText = text.replace(/(!?)\[([^\]]+)\]\(([^)]+)\)/g, (match, isImage, label, url) => {
+    if (isImage) return match;
+
+    let id = urlToId.get(url);
+    if (id === undefined) {
+      id = references.length + 1;
+      urlToId.set(url, id);
+      references.push({ id, label, url });
+    }
+    return `[${id}](${url})`;
+  });
+
+  return { processedText, references };
+}
+
 // Props for HumanMessageBubble
 interface HumanMessageBubbleProps {
   message: Message;
@@ -146,7 +181,7 @@ const HumanMessageBubble: React.FC<HumanMessageBubbleProps> = ({
 
   return (
     <div className="max-w-[100%] rounded-2xl rounded-br-md border border-teal-700 bg-teal-700 px-4 py-3 text-white shadow-sm sm:max-w-[90%] [&_*]:text-white [&_p:last-child]:mb-0">
-      <ReactMarkdown components={mdComponents}>{messageText}</ReactMarkdown>
+      <ReactMarkdown components={humanMdComponents}>{messageText}</ReactMarkdown>
     </div>
   );
 };
@@ -230,9 +265,15 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const activityForThisBubble =
     isLastMessage && isOverallLoading ? liveActivity : historicalActivity;
   const isLiveActivityForThisBubble = isLastMessage && isOverallLoading;
-  const messageText = getMessageText(message);
+  const rawMessageText = getMessageText(message);
+  
+  const { processedText, references } = useMemo(
+    () => processMessageCitations(rawMessageText),
+    [rawMessageText]
+  );
+
   const showVisualBlocks =
-    messageText.length > 0 && !(isLastMessage && isOverallLoading);
+    rawMessageText.length > 0 && !(isLastMessage && isOverallLoading);
   const visualBlocks = getVisualBlocks(
     (message as { additional_kwargs?: { visual_blocks?: unknown } })
       .additional_kwargs?.visual_blocks
@@ -250,14 +291,37 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       )}
       {showVisualBlocks && <AnswerVisualBlocks blocks={visualBlocks} />}
       <div className="max-w-none [overflow-wrap:anywhere]">
-        <ReactMarkdown components={mdComponents}>{messageText}</ReactMarkdown>
+        <ReactMarkdown components={mdComponents}>{processedText}</ReactMarkdown>
       </div>
+      
+      {references.length > 0 && (
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <div className="flex flex-wrap gap-2">
+            {references.map((ref) => (
+              <a
+                key={ref.id}
+                href={ref.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={ref.label}
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors no-underline"
+              >
+                <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-teal-100 text-[8px] font-bold text-teal-800">
+                  {ref.id}
+                </span>
+                <span className="truncate max-w-[200px]">{ref.label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       <Button
         variant="default"
         className={`mt-2 h-9 cursor-pointer self-end rounded-full border border-slate-200 bg-white px-3 text-slate-600 shadow-none hover:bg-slate-50 ${
-          messageText.length > 0 ? "visible" : "hidden"
+          rawMessageText.length > 0 ? "visible" : "hidden"
         }`}
-        onClick={() => handleCopy(messageText, message.id!)}
+        onClick={() => handleCopy(rawMessageText, message.id!)}
       >
         {copiedMessageId === message.id ? "Copied" : "Copy"}
         {copiedMessageId === message.id ? <CopyCheck /> : <Copy />}

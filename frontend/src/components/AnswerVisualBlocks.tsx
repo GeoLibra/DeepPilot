@@ -60,15 +60,22 @@ function T8Block({ block }: { block: VisualBlock }) {
         unmount = text
           .theme("light", {
             fontFamily: "inherit",
-            fontSize: 13,
-            lineHeight: 22,
+            fontSize: 14,
+            lineHeight: 24,
             colorMetricName: "#111827",
             colorMetricValue: "#0f766e",
             colorDimensionValue: "#b45309",
+            colorOtherValue: "#374151",
             colorPositive: "#047857",
             colorNegative: "#dc2626",
             colorBase: "#374151",
             colorHeadingBase: "#111827",
+            colorEntityBase: "#374151",
+            colorConclusion: "#0f766e",
+            colorProportionShadow: "#ccfbf1",
+            colorProportionFill: "#0f766e",
+            colorLineStroke: "#0d9488",
+            colorLink: "#0f766e",
           })
           .render(block.syntax);
       })
@@ -95,7 +102,7 @@ function T8Block({ block }: { block: VisualBlock }) {
       ) : (
         <div
           ref={containerRef}
-          className="min-h-[88px] rounded-lg border border-slate-200 bg-white p-3 text-slate-800 [overflow-wrap:anywhere] [&_*]:max-w-full [&_*]:whitespace-normal [&_h1]:mb-2 [&_h1]:text-base [&_h1]:font-semibold [&_p]:mb-2"
+          className="t8-container min-h-[100px] rounded-lg border border-slate-200 bg-white p-4 text-slate-800"
         />
       )}
     </VisualFrame>
@@ -187,19 +194,34 @@ function parseInfographicItems(syntax: string) {
   const title =
     lines
       .map((line) => line.trim())
-      .find((line) => line.startsWith("title "))
-      ?.replace(/^title\s+/, "")
+      .find((line) => /^title\s+/i.test(line))
+      ?.replace(/^title\s+/i, "")
       .trim() || "";
   const items: { label: string; desc: string }[] = [];
   let current: { label: string; desc: string } | null = null;
 
+  // Match items starting with `- label ...`, `- title ...`, or bare `- ` followed by text
+  const itemStartRe = /^-\s+(?:label|title)\s+(.*)/i;
+  const bareItemRe = /^-\s+(\S.*)/;
+  const descRe = /^(?:desc|description|content)\s+(.*)/i;
+
   for (const rawLine of lines) {
     const line = rawLine.trim();
-    if (line.startsWith("- label ")) {
+
+    // Skip section markers like "lists", "cards", "items", "data"
+    if (/^(lists|cards|items|data|infographic\s)$/i.test(line)) continue;
+    // Skip the top-level title line
+    if (/^title\s+/i.test(line) && items.length === 0 && !current) continue;
+
+    const itemMatch = line.match(itemStartRe) || line.match(bareItemRe);
+    if (itemMatch && line.startsWith("-")) {
       if (current) items.push(current);
-      current = { label: line.replace(/^- label\s+/, "").trim(), desc: "" };
-    } else if (line.startsWith("desc ") && current) {
-      current.desc = line.replace(/^desc\s+/, "").trim();
+      current = { label: itemMatch[1].trim(), desc: "" };
+    } else if (current) {
+      const descMatch = line.match(descRe);
+      if (descMatch) {
+        current.desc = descMatch[1].trim();
+      }
     }
   }
 

@@ -163,22 +163,119 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* Hide any white space that might appear during scroll bounce */
+/* Hide native scrollbar inside Radix ScrollArea */
 [data-radix-scroll-area-viewport]::-webkit-scrollbar {
   width: 0px;
   background: transparent;
 }
 
-/* Subtle scroll bar styling */
+/* Subtle scroll bar styling — nearly invisible by default, reveals on hover */
 [data-slot="scroll-area-scrollbar"] {
-  opacity: 0.3;
-  transition: opacity 0.2s ease;
+  opacity: 0;
+  transition: opacity 0.3s ease, width 0.2s ease;
 }
 
 [data-slot="scroll-area"]:hover [data-slot="scroll-area-scrollbar"] {
-  opacity: 0.6;
+  opacity: 0.5;
+}
+
+[data-slot="scroll-area-scrollbar"]:hover {
+  opacity: 0.8 !important;
 }
 
 [data-slot="scroll-area-thumb"] {
-  background-color: rgb(100 116 139 / 0.24) !important;
+  background-color: rgb(148 163 184 / 0.3) !important;
+  transition: background-color 0.2s ease;
+}
+
+[data-slot="scroll-area-thumb"]:hover {
+  background-color: rgb(148 163 184 / 0.5) !important;
+}
+
+/* Global thin scrollbar for non-Radix containers */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 0.25) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(148 163 184 / 0.25);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(148 163 184 / 0.45);
+}
+
+/* ─── T8 narrative text visualization styles ─── */
+.t8-container {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Headings inside T8 */
+.t8-container h1 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #111827;
+}
+
+.t8-container h2 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  margin-bottom: 0.375rem;
+  color: #111827;
+}
+
+.t8-container h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  color: #111827;
+}
+
+/* Paragraphs inside T8 */
+.t8-container p {
+  margin-bottom: 0.625rem;
+  line-height: 1.75;
+}
+
+/* Inline charts rendered by T8 (SVG/Canvas sparklines) */
+.t8-container svg,
+.t8-container canvas {
+  display: inline-block;
+  vertical-align: middle;
+  max-height: 1.5em;
+  overflow: visible;
+}
+
+/* Annotated entity spans — keep signs and numbers together */
+.t8-container span[style] {
+  display: inline;
+  white-space: nowrap;
+}
+
+/* Bullet lists */
+.t8-container ul,
+.t8-container ol {
+  padding-left: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.t8-container li {
+  margin-bottom: 0.25rem;
+  line-height: 1.75;
 }

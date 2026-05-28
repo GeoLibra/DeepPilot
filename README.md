@@ -2,14 +2,6 @@
 
 DeepPilot is a full-stack research assistant. It takes a user question, generates focused search queries, gathers source-backed web context, reflects on missing information, and produces a cited final answer with optional visual blocks.
 
-## Stack
-
-- Frontend: React, Vite, TypeScript, Tailwind CSS, shadcn/ui
-- Backend: Python, LangGraph, FastAPI, uv
-- Models: OpenAI-compatible model APIs configured in `backend/config.yaml`
-- Default model: `deepseek-v4-pro` through NVIDIA Integrate
-- Local dev: Vite hot reload plus LangGraph dev server reload
-
 ## Project Structure
 
 ```text
@@ -78,7 +70,6 @@ Default local URLs:
 - Backend API: `http://127.0.0.1:2026`
 - LangGraph Studio: `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2026`
 
-If port `5173` is already in use, Vite will automatically choose the next available port, such as `5174`.
 
 ## Hot Reload
 

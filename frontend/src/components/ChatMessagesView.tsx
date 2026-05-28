@@ -275,6 +275,7 @@ interface ChatMessagesViewProps {
   liveActivityEvents: ProcessedEvent[];
   historicalActivities: Record<string, ProcessedEvent[]>;
   modelOptions: ModelOption[];
+  error?: string | null;
 }
 
 export function ChatMessagesView({
@@ -286,6 +287,7 @@ export function ChatMessagesView({
   liveActivityEvents,
   historicalActivities,
   modelOptions,
+  error,
 }: ChatMessagesViewProps) {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const visibleMessages = messages.filter(
@@ -364,6 +366,13 @@ export function ChatMessagesView({
             )}
         </div>
       </ScrollArea>
+      {error && (
+        <div className="mx-auto w-full max-w-5xl px-4 py-2">
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600 border border-red-200">
+            <strong>Error:</strong> {error}
+          </div>
+        </div>
+      )}
       <InputForm
         onSubmit={onSubmit}
         isLoading={isLoading}

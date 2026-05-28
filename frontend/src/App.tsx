@@ -198,6 +198,7 @@ export default function App() {
   const handleSubmit = useCallback(
     (submittedInputValue: string, effort: string, model: string) => {
       if (!submittedInputValue.trim()) return;
+      setError(null);
       setProcessedEventsTimeline([]);
       hasFinalizeEventOccurredRef.current = false;
 
@@ -254,21 +255,8 @@ export default function App() {
               isLoading={thread.isLoading}
               onCancel={handleCancel}
               modelOptions={modelOptions}
+              error={error}
             />
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center h-full">
-              <div className="flex flex-col items-center justify-center gap-4">
-                <h1 className="text-2xl text-red-600 font-bold">Error</h1>
-                <p className="text-red-600">{JSON.stringify(error)}</p>
-
-                <Button
-                  variant="destructive"
-                  onClick={() => window.location.reload()}
-                >
-                  Retry
-                </Button>
-              </div>
-            </div>
           ) : (
             <ChatMessagesView
               messages={thread.messages}
@@ -279,6 +267,7 @@ export default function App() {
               liveActivityEvents={processedEventsTimeline}
               historicalActivities={historicalActivities}
               modelOptions={modelOptions}
+              error={error}
             />
           )}
       </main>

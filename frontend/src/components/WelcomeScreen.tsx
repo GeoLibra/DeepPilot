@@ -9,6 +9,7 @@ interface WelcomeScreenProps {
   onCancel: () => void;
   isLoading: boolean;
   modelOptions: ModelOption[];
+  error?: string | null;
 }
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
@@ -16,6 +17,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onCancel,
   isLoading,
   modelOptions,
+  error,
 }) => (
   <div className="mx-auto flex h-full w-full max-w-4xl flex-1 flex-col items-center justify-center gap-5 px-4 text-center">
     <div className="space-y-2">
@@ -27,6 +29,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       </p>
     </div>
     <div className="w-full">
+      {error && (
+        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 border border-red-200 text-left mx-auto max-w-2xl">
+          <strong>Error:</strong> {error}
+        </div>
+      )}
       <InputForm
         onSubmit={handleSubmit}
         isLoading={isLoading}

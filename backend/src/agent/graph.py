@@ -113,7 +113,7 @@ def web_research(state: WebSearchState, config: RunnableConfig) -> OverallState:
 
     # Use the direct provider client because the LangChain wrapper does not expose grounding metadata.
     response = genai_client.models.generate_content(
-        model=configurable.query_generator_model,
+        model=configurable.web_search_model,
         contents=formatted_prompt,
         config={
             "tools": [{"google_search": {}}],

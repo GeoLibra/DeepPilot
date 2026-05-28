@@ -38,6 +38,33 @@ const FALLBACK_MODEL_OPTIONS: ModelOption[] = [
   },
 ];
 
+type SourceEvent = {
+  label?: string;
+};
+
+type StreamUpdateEvent = {
+  generate_query?: {
+    search_query?: string[];
+  };
+  web_research?: {
+    sources_gathered?: SourceEvent[];
+  };
+  reflection?: unknown;
+  finalize_answer?: unknown;
+  visualize_answer?: {
+    visual_blocks?: unknown[];
+  };
+};
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    return typeof message === "string" ? message : JSON.stringify(message);
+  }
+  return String(error);
+}
+
 export default function App() {
   const apiUrl = import.meta.env.DEV
     ? "http://localhost:2026"
@@ -63,7 +90,7 @@ export default function App() {
     apiUrl,
     assistantId: "agent",
     messagesKey: "messages",
-    onUpdateEvent: (event: any) => {
+    onUpdateEvent: (event: StreamUpdateEvent) => {
       let processedEvent: ProcessedEvent | null = null;
       if (event.generate_query) {
         processedEvent = {
@@ -74,7 +101,7 @@ export default function App() {
         const sources = event.web_research.sources_gathered || [];
         const numSources = sources.length;
         const uniqueLabels = [
-          ...new Set(sources.map((s: any) => s.label).filter(Boolean)),
+          ...new Set(sources.map((source) => source.label).filter(Boolean)),
         ];
         const exampleLabels = uniqueLabels.slice(0, 3).join(", ");
         processedEvent = {
@@ -110,8 +137,8 @@ export default function App() {
         ]);
       }
     },
-    onError: (error: any) => {
-      setError(error.message);
+    onError: (error: unknown) => {
+      setError(getErrorMessage(error));
     },
   });
 
@@ -219,8 +246,8 @@ export default function App() {
   }, [thread]);
 
   return (
-    <div className="flex h-screen bg-neutral-800 text-neutral-100 font-sans antialiased">
-      <main className="h-full w-full max-w-4xl mx-auto">
+    <div className="flex min-h-[100dvh] bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.14),transparent_32%),linear-gradient(180deg,#f8fafc_0%,#eef6f4_48%,#f8fafc_100%)] font-sans text-slate-900 antialiased">
+      <main className="mx-auto h-[100dvh] w-full max-w-6xl">
           {thread.messages.length === 0 ? (
             <WelcomeScreen
               handleSubmit={handleSubmit}
@@ -231,8 +258,8 @@ export default function App() {
           ) : error ? (
             <div className="flex flex-col items-center justify-center h-full">
               <div className="flex flex-col items-center justify-center gap-4">
-                <h1 className="text-2xl text-red-400 font-bold">Error</h1>
-                <p className="text-red-400">{JSON.stringify(error)}</p>
+                <h1 className="text-2xl text-red-600 font-bold">Error</h1>
+                <p className="text-red-600">{JSON.stringify(error)}</p>
 
                 <Button
                   variant="destructive"

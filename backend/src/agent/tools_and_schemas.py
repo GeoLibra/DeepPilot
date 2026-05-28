@@ -25,7 +25,7 @@ class Reflection(BaseModel):
 
 class VisualBlock(BaseModel):
     type: Literal["t8", "infographic"] = Field(
-        description="The renderer to use for this visual block."
+        description="The renderer to use only when this visual block genuinely improves the answer."
     )
     title: str = Field(description="Short display title for the visual block.")
     purpose: str = Field(
@@ -43,5 +43,5 @@ class VisualBlock(BaseModel):
 class VisualBlocks(BaseModel):
     blocks: List[VisualBlock] = Field(
         default_factory=list,
-        description="Optional visual blocks that enhance the final answer without replacing it.",
+        description="Optional content-driven visual blocks. Return an empty list when markdown is clearer.",
     )

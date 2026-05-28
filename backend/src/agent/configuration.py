@@ -9,9 +9,16 @@ class Configuration(BaseModel):
     """The configuration for the agent."""
 
     query_generator_model: str = Field(
-        default="gemini-2.0-flash",
+        default="deepseek-v4-pro",
         metadata={
             "description": "The name of the language model to use for the agent's query generation."
+        },
+    )
+
+    web_search_model: str = Field(
+        default="gemini-2.0-flash",
+        metadata={
+            "description": "The Google model to use for grounded web search."
         },
     )
 

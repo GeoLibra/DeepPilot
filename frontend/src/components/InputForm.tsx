@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export type ModelOption = {
   name: string;
@@ -70,33 +71,41 @@ export const InputForm: React.FC<InputFormProps> = ({
   };
 
   const isSubmitDisabled = !internalInputValue.trim() || isLoading;
+  const formChrome = hasHistory
+    ? "border-t border-slate-200/80 bg-white/80 px-3 py-3 backdrop-blur md:px-5"
+    : "bg-transparent p-0";
+  const inputChrome = hasHistory
+    ? "rounded-2xl rounded-br-md border border-slate-200 bg-white px-4 pt-3 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
+    : "rounded-2xl border border-slate-200 bg-white px-4 pt-3 shadow-[0_18px_60px_rgba(15,23,42,0.08)]";
+  const selectTriggerChrome =
+    "h-9 cursor-pointer rounded-none border-0 bg-transparent px-2 text-sm shadow-none outline-none ring-0 focus:border-transparent focus:ring-0 focus-visible:border-transparent focus-visible:ring-0 [&>span]:min-w-0 [&>span]:truncate";
 
   return (
     <form
       onSubmit={handleInternalSubmit}
-      className={`flex flex-col gap-2 p-3 pb-4`}
+      className={formChrome}
     >
       <div
-        className={`flex flex-row items-center justify-between text-white rounded-3xl rounded-bl-sm ${
-          hasHistory ? "rounded-br-sm" : ""
-        } break-words min-h-7 bg-neutral-700 px-4 pt-3 `}
+        className={cn(
+          "flex min-h-7 flex-row items-center justify-between text-slate-900",
+          inputChrome
+        )}
       >
         <Textarea
           value={internalInputValue}
           onChange={(e) => setInternalInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Who won the Euro 2026 and scored the most goals?"
-          className={`w-full text-neutral-100 placeholder-neutral-500 resize-none border-0 focus:outline-none focus:ring-0 outline-none focus-visible:ring-0 shadow-none
-                        md:text-base  min-h-[56px] max-h-[200px]`}
+          placeholder="Ask DeepPilot to research a company, market, or event..."
+          className="max-h-[200px] min-h-[56px] w-full resize-none border-0 text-slate-900 shadow-none outline-none placeholder:text-slate-400 focus:outline-none focus:ring-0 focus-visible:ring-0 md:text-base"
           rows={1}
         />
-        <div className="-mt-3">
+        <div className="-mt-3 shrink-0">
           {isLoading ? (
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="text-red-500 hover:text-red-400 hover:bg-red-500/10 p-2 cursor-pointer rounded-full transition-all duration-200"
+              className="cursor-pointer rounded-full p-2 text-red-600 transition-all duration-200 hover:bg-red-50 hover:text-red-700"
               onClick={onCancel}
             >
               <StopCircle className="h-5 w-5" />
@@ -107,9 +116,9 @@ export const InputForm: React.FC<InputFormProps> = ({
               variant="ghost"
               className={`${
                 isSubmitDisabled
-                  ? "text-neutral-500"
-                  : "text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
-              } p-2 cursor-pointer rounded-full transition-all duration-200 text-base`}
+                  ? "text-slate-400"
+                  : "text-teal-700 hover:bg-teal-50 hover:text-teal-800"
+              } cursor-pointer rounded-full px-3 py-2 text-base transition-all duration-200`}
               disabled={isSubmitDisabled}
             >
               Search
@@ -118,60 +127,60 @@ export const InputForm: React.FC<InputFormProps> = ({
           )}
         </div>
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex flex-row gap-2">
-          <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2  max-w-[100%] sm:max-w-[90%]">
-            <div className="flex flex-row items-center text-sm">
-              <Brain className="h-4 w-4 mr-2" />
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap gap-2">
+          <div className="flex max-w-full flex-row items-center gap-2 rounded-xl bg-white px-3 text-slate-700 shadow-sm ring-1 ring-slate-200/80">
+            <div className="flex shrink-0 flex-row items-center text-sm">
+              <Brain className="mr-2 h-4 w-4 text-teal-700" />
               Effort
             </div>
             <Select value={effort} onValueChange={setEffort}>
-              <SelectTrigger className="w-[120px] bg-transparent border-none cursor-pointer">
+              <SelectTrigger className={cn("w-[112px]", selectTriggerChrome)}>
                 <SelectValue placeholder="Effort" />
               </SelectTrigger>
-              <SelectContent className="bg-neutral-700 border-neutral-600 text-neutral-300 cursor-pointer">
+              <SelectContent className="cursor-pointer border-slate-200 bg-white text-slate-700 shadow-lg">
                 <SelectItem
                   value="low"
-                  className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
+                  className="cursor-pointer hover:bg-slate-100 focus:bg-slate-100"
                 >
                   Low
                 </SelectItem>
                 <SelectItem
                   value="medium"
-                  className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
+                  className="cursor-pointer hover:bg-slate-100 focus:bg-slate-100"
                 >
                   Medium
                 </SelectItem>
                 <SelectItem
                   value="high"
-                  className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
+                  className="cursor-pointer hover:bg-slate-100 focus:bg-slate-100"
                 >
                   High
                 </SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2  max-w-[100%] sm:max-w-[90%]">
-            <div className="flex flex-row items-center text-sm ml-2">
-              <Cpu className="h-4 w-4 mr-2" />
+          <div className="flex max-w-full flex-row items-center gap-2 rounded-xl bg-white px-3 text-slate-700 shadow-sm ring-1 ring-slate-200/80">
+            <div className="ml-1 flex shrink-0 flex-row items-center text-sm">
+              <Cpu className="mr-2 h-4 w-4 text-teal-700" />
               Model
             </div>
             <Select value={model} onValueChange={setModel}>
-              <SelectTrigger className="w-[150px] bg-transparent border-none cursor-pointer">
+              <SelectTrigger className={cn("w-[280px] max-w-[52vw]", selectTriggerChrome)}>
                 <SelectValue placeholder="Model" />
               </SelectTrigger>
-              <SelectContent className="bg-neutral-700 border-neutral-600 text-neutral-300 cursor-pointer">
+              <SelectContent className="cursor-pointer border-slate-200 bg-white text-slate-700 shadow-lg">
                 {modelOptions.map((option) => (
                   <SelectItem
                     key={option.name}
                     value={option.name}
-                    className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
+                    className="cursor-pointer hover:bg-slate-100 focus:bg-slate-100"
                   >
                     <div className="flex items-center">
                       {option.supports_thinking ? (
-                        <Sparkles className="h-4 w-4 mr-2 text-cyan-300" />
+                        <Sparkles className="mr-2 h-4 w-4 text-teal-700" />
                       ) : (
-                        <Cpu className="h-4 w-4 mr-2 text-purple-300" />
+                        <Cpu className="mr-2 h-4 w-4 text-slate-400" />
                       )}
                       {option.display_name}
                     </div>
@@ -183,7 +192,7 @@ export const InputForm: React.FC<InputFormProps> = ({
         </div>
         {hasHistory && (
           <Button
-            className="bg-neutral-700 border-neutral-600 text-neutral-300 cursor-pointer rounded-xl rounded-t-sm pl-2 "
+            className="cursor-pointer rounded-xl border border-slate-200 bg-white pl-3 text-slate-700 shadow-sm hover:bg-slate-50"
             variant="default"
             onClick={() => window.location.reload()}
           >

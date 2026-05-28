@@ -16,6 +16,8 @@ interface AnswerVisualBlocksProps {
   blocks: VisualBlock[];
 }
 
+const INFOGRAPHIC_HEIGHT = 200;
+
 function isVisualBlock(value: unknown): value is VisualBlock {
   if (!value || typeof value !== "object") return false;
 
@@ -56,17 +58,17 @@ function T8Block({ block }: { block: VisualBlock }) {
 
         text = new Text(container);
         unmount = text
-          .theme("dark", {
+          .theme("light", {
             fontFamily: "inherit",
             fontSize: 13,
             lineHeight: 22,
-            colorMetricName: "#f5f5f5",
-            colorMetricValue: "#67e8f9",
-            colorDimensionValue: "#fbbf24",
-            colorPositive: "#fb7185",
-            colorNegative: "#2dd4bf",
-            colorBase: "rgba(245, 245, 245, 0.74)",
-            colorHeadingBase: "#fafafa",
+            colorMetricName: "#111827",
+            colorMetricValue: "#0f766e",
+            colorDimensionValue: "#b45309",
+            colorPositive: "#047857",
+            colorNegative: "#dc2626",
+            colorBase: "#374151",
+            colorHeadingBase: "#111827",
           })
           .render(block.syntax);
       })
@@ -87,13 +89,13 @@ function T8Block({ block }: { block: VisualBlock }) {
   return (
     <VisualFrame block={block} icon={<FileText className="h-4 w-4" />}>
       {failed ? (
-        <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-neutral-950 p-3 text-xs text-neutral-300">
+        <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
           {block.syntax}
         </pre>
       ) : (
         <div
           ref={containerRef}
-          className="min-h-[96px] rounded-md bg-neutral-900/70 p-3 [&_h1]:mb-2 [&_h1]:text-base [&_h1]:font-semibold [&_p]:mb-2"
+          className="min-h-[88px] rounded-lg border border-slate-200 bg-white p-3 text-slate-800 [overflow-wrap:anywhere] [&_*]:max-w-full [&_*]:whitespace-normal [&_h1]:mb-2 [&_h1]:text-base [&_h1]:font-semibold [&_p]:mb-2"
         />
       )}
     </VisualFrame>
@@ -110,6 +112,7 @@ function InfographicBlock({ block }: { block: VisualBlock }) {
 
     let infographic: InfographicInstance | null = null;
     let cancelled = false;
+    let blankCheck: number | undefined;
     setFailed(false);
     container.innerHTML = "";
 
@@ -120,13 +123,13 @@ function InfographicBlock({ block }: { block: VisualBlock }) {
         infographic = new Infographic({
           container,
           width: "100%",
-          height: 260,
+          height: INFOGRAPHIC_HEIGHT,
           padding: [18, 16, 16, 16],
-          theme: "dark",
+          theme: "light",
           themeConfig: {
-            colorBg: "#171717",
-            colorPrimary: "#22d3ee",
-            palette: ["#22d3ee", "#f59e0b", "#34d399", "#fb7185"],
+            colorBg: "#ffffff",
+            colorPrimary: "#0f766e",
+            palette: ["#0f766e", "#d97706", "#2563eb", "#dc2626"],
           },
           svg: {
             background: false,
@@ -136,6 +139,20 @@ function InfographicBlock({ block }: { block: VisualBlock }) {
           },
         });
         infographic.render(block.syntax);
+        blankCheck = window.setTimeout(() => {
+          if (cancelled) return;
+          const hasRenderedSurface = container.querySelector("svg, canvas");
+          const svg = container.querySelector("svg");
+          const drawableCount =
+            svg?.querySelectorAll("path, rect, circle, text, line, polyline, polygon")
+              .length ?? 0;
+          const hasVisibleContent =
+            Boolean(container.textContent?.trim()) || drawableCount > 2;
+          if (!hasRenderedSurface || !hasVisibleContent) {
+            container.innerHTML = "";
+            setFailed(true);
+          }
+        }, 700);
       })
       .catch((error) => {
         console.error("Failed to render infographic block:", error);
@@ -145,6 +162,7 @@ function InfographicBlock({ block }: { block: VisualBlock }) {
 
     return () => {
       cancelled = true;
+      if (blankCheck) window.clearTimeout(blankCheck);
       infographic?.destroy();
       container.innerHTML = "";
     };
@@ -153,16 +171,83 @@ function InfographicBlock({ block }: { block: VisualBlock }) {
   return (
     <VisualFrame block={block} icon={<BarChart3 className="h-4 w-4" />}>
       {failed ? (
-        <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-neutral-950 p-3 text-xs text-neutral-300">
-          {block.syntax}
-        </pre>
+        <NativeInfographic syntax={block.syntax} />
       ) : (
         <div
           ref={containerRef}
-          className="min-h-[260px] overflow-hidden rounded-md bg-neutral-900/70 [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
+          className="mx-auto min-h-[200px] w-full max-w-[720px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm [&_svg]:block [&_svg]:h-full [&_svg]:max-h-[200px] [&_svg]:w-full"
         />
       )}
     </VisualFrame>
+  );
+}
+
+function parseInfographicItems(syntax: string) {
+  const lines = syntax.split("\n").map((line) => line.trimEnd());
+  const title =
+    lines
+      .map((line) => line.trim())
+      .find((line) => line.startsWith("title "))
+      ?.replace(/^title\s+/, "")
+      .trim() || "";
+  const items: { label: string; desc: string }[] = [];
+  let current: { label: string; desc: string } | null = null;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line.startsWith("- label ")) {
+      if (current) items.push(current);
+      current = { label: line.replace(/^- label\s+/, "").trim(), desc: "" };
+    } else if (line.startsWith("desc ") && current) {
+      current.desc = line.replace(/^desc\s+/, "").trim();
+    }
+  }
+
+  if (current) items.push(current);
+  return { title, items };
+}
+
+function NativeInfographic({ syntax }: { syntax: string }) {
+  const parsed = parseInfographicItems(syntax);
+
+  if (parsed.items.length === 0) {
+    return (
+      <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-700">
+        {syntax}
+      </pre>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      {parsed.title && (
+        <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-teal-700">
+          {parsed.title}
+        </p>
+      )}
+      <div className="grid gap-3 md:grid-cols-2">
+        {parsed.items.map((item, index) => (
+          <div
+            key={`${item.label}-${index}`}
+            className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+          >
+            <div className="mb-2 flex items-center gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-50 text-[11px] font-semibold text-teal-700">
+                {index + 1}
+              </span>
+              <h4 className="min-w-0 break-words text-sm font-semibold text-slate-900">
+                {item.label}
+              </h4>
+            </div>
+            {item.desc && (
+              <p className="break-words text-xs leading-5 text-slate-600">
+                {item.desc}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -176,12 +261,12 @@ function VisualFrame({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-neutral-700/80 bg-neutral-950/40 shadow-sm">
-      <div className="flex items-center gap-2 border-b border-neutral-800 px-3 py-2 text-sm font-medium text-neutral-200">
-        <span className="text-cyan-300">{icon}</span>
-        <span>{block.title}</span>
+    <section className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800">
+        <span className="text-teal-700">{icon}</span>
+        <span className="min-w-0 break-words">{block.title}</span>
       </div>
-      <div className="p-3">{children}</div>
+      <div className="p-4">{children}</div>
     </section>
   );
 }

@@ -180,8 +180,5 @@
 }
 
 [data-slot="scroll-area-thumb"] {
-  background-color: rgb(115 115 115 / 0.2) !important;
+  background-color: rgb(100 116 139 / 0.24) !important;
 }
-
-/* Ensure your body or html has a dark background if not already set, e.g.: */
-/* body { background-color: #0c0c0d; } */ /* This is similar to neutral-950 */

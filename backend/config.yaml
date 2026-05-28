@@ -112,3 +112,14 @@ models:
     stream: true
     supports_thinking: false
     supports_vision: false
+
+  # Google official model
+  - name: gemini-3.5-flash
+    display_name: Gemini 3.5 Flash (Google)
+    use: google_genai
+    model: gemini-3.5-flash
+    api_key: $GEMINI_API_KEY
+    max_tokens: 8192
+    temperature: 1.0
+    supports_thinking: false
+    supports_vision: true

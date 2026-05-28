@@ -1,9 +1,3 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-} from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Loader2,
@@ -20,7 +14,7 @@ import { useEffect, useState } from "react";
 
 export interface ProcessedEvent {
   title: string;
-  data: any;
+  data: unknown;
 }
 
 interface ActivityTimelineProps {
@@ -36,20 +30,20 @@ export function ActivityTimeline({
     useState<boolean>(false);
   const getEventIcon = (title: string, index: number) => {
     if (index === 0 && isLoading && processedEvents.length === 0) {
-      return <Loader2 className="h-4 w-4 text-neutral-400 animate-spin" />;
+      return <Loader2 className="h-4 w-4 animate-spin text-teal-700" />;
     }
     if (title.toLowerCase().includes("generating")) {
-      return <TextSearch className="h-4 w-4 text-neutral-400" />;
+      return <TextSearch className="h-4 w-4 text-teal-700" />;
     } else if (title.toLowerCase().includes("thinking")) {
-      return <Loader2 className="h-4 w-4 text-neutral-400 animate-spin" />;
+      return <Loader2 className="h-4 w-4 animate-spin text-teal-700" />;
     } else if (title.toLowerCase().includes("reflection")) {
-      return <Brain className="h-4 w-4 text-neutral-400" />;
+      return <Brain className="h-4 w-4 text-teal-700" />;
     } else if (title.toLowerCase().includes("research")) {
-      return <Search className="h-4 w-4 text-neutral-400" />;
+      return <Search className="h-4 w-4 text-teal-700" />;
     } else if (title.toLowerCase().includes("finalizing")) {
-      return <Pen className="h-4 w-4 text-neutral-400" />;
+      return <Pen className="h-4 w-4 text-teal-700" />;
     }
-    return <Activity className="h-4 w-4 text-neutral-400" />;
+    return <Activity className="h-4 w-4 text-teal-700" />;
   };
 
   useEffect(() => {
@@ -58,34 +52,40 @@ export function ActivityTimeline({
     }
   }, [isLoading, processedEvents]);
 
+  const formatEventData = (data: unknown) => {
+    if (typeof data === "string") return data;
+    if (Array.isArray(data)) return data.map(String).join(", ");
+    return JSON.stringify(data);
+  };
+
   return (
-    <Card className="border-none rounded-lg bg-neutral-700 max-h-96">
-      <CardHeader>
-        <CardDescription className="flex items-center justify-between">
-          <div
-            className="flex items-center justify-start text-sm w-full cursor-pointer gap-2 text-neutral-100"
-            onClick={() => setIsTimelineCollapsed(!isTimelineCollapsed)}
-          >
-            Research
-            {isTimelineCollapsed ? (
-              <ChevronDown className="h-4 w-4 mr-2" />
-            ) : (
-              <ChevronUp className="h-4 w-4 mr-2" />
-            )}
-          </div>
-        </CardDescription>
-      </CardHeader>
+    <section className="max-h-96 overflow-hidden rounded-2xl border border-slate-200 bg-white/70">
+      <button
+        type="button"
+        className="flex w-full cursor-pointer items-center justify-between border-b border-slate-200 px-4 py-3 text-left text-sm text-slate-900"
+        onClick={() => setIsTimelineCollapsed(!isTimelineCollapsed)}
+      >
+        <span className="flex items-center gap-2 font-medium">
+          <Search className="h-4 w-4 text-teal-700" />
+          Research
+        </span>
+        {isTimelineCollapsed ? (
+          <ChevronDown className="h-4 w-4 text-slate-400" />
+        ) : (
+          <ChevronUp className="h-4 w-4 text-slate-400" />
+        )}
+      </button>
       {!isTimelineCollapsed && (
         <ScrollArea className="max-h-96 overflow-y-auto">
-          <CardContent>
+          <div className="px-4 py-4">
             {isLoading && processedEvents.length === 0 && (
               <div className="relative pl-8 pb-4">
-                <div className="absolute left-3 top-3.5 h-full w-0.5 bg-neutral-800" />
-                <div className="absolute left-0.5 top-2 h-5 w-5 rounded-full bg-neutral-800 flex items-center justify-center ring-4 ring-neutral-900">
-                  <Loader2 className="h-3 w-3 text-neutral-400 animate-spin" />
+                <div className="absolute left-3 top-3.5 h-full w-px bg-slate-200" />
+                <div className="absolute left-0.5 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-teal-50 ring-4 ring-white">
+                  <Loader2 className="h-3 w-3 animate-spin text-teal-700" />
                 </div>
                 <div>
-                  <p className="text-sm text-neutral-300 font-medium">
+                  <p className="text-sm font-medium text-slate-800">
                     Searching...
                   </p>
                 </div>
@@ -97,32 +97,28 @@ export function ActivityTimeline({
                   <div key={index} className="relative pl-8 pb-4">
                     {index < processedEvents.length - 1 ||
                     (isLoading && index === processedEvents.length - 1) ? (
-                      <div className="absolute left-3 top-3.5 h-full w-0.5 bg-neutral-600" />
+                      <div className="absolute left-3 top-3.5 h-full w-px bg-slate-200" />
                     ) : null}
-                    <div className="absolute left-0.5 top-2 h-6 w-6 rounded-full bg-neutral-600 flex items-center justify-center ring-4 ring-neutral-700">
+                    <div className="absolute left-0.5 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-teal-50 ring-4 ring-white">
                       {getEventIcon(eventItem.title, index)}
                     </div>
                     <div>
-                      <p className="text-sm text-neutral-200 font-medium mb-0.5">
+                      <p className="mb-1 text-sm font-semibold text-slate-900">
                         {eventItem.title}
                       </p>
-                      <p className="text-xs text-neutral-300 leading-relaxed">
-                        {typeof eventItem.data === "string"
-                          ? eventItem.data
-                          : Array.isArray(eventItem.data)
-                          ? (eventItem.data as string[]).join(", ")
-                          : JSON.stringify(eventItem.data)}
+                      <p className="break-words text-xs leading-relaxed text-slate-500">
+                        {formatEventData(eventItem.data)}
                       </p>
                     </div>
                   </div>
                 ))}
                 {isLoading && processedEvents.length > 0 && (
                   <div className="relative pl-8 pb-4">
-                    <div className="absolute left-0.5 top-2 h-5 w-5 rounded-full bg-neutral-600 flex items-center justify-center ring-4 ring-neutral-700">
-                      <Loader2 className="h-3 w-3 text-neutral-400 animate-spin" />
+                    <div className="absolute left-0.5 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-teal-50 ring-4 ring-white">
+                      <Loader2 className="h-3 w-3 animate-spin text-teal-700" />
                     </div>
                     <div>
-                      <p className="text-sm text-neutral-300 font-medium">
+                      <p className="text-sm font-medium text-slate-800">
                         Searching...
                       </p>
                     </div>
@@ -130,17 +126,17 @@ export function ActivityTimeline({
                 )}
               </div>
             ) : !isLoading ? ( // Only show "No activity" if not loading and no events
-              <div className="flex flex-col items-center justify-center h-full text-neutral-500 pt-10">
+              <div className="flex h-full flex-col items-center justify-center pt-10 text-slate-500">
                 <Info className="h-6 w-6 mb-3" />
                 <p className="text-sm">No activity to display.</p>
-                <p className="text-xs text-neutral-600 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   Timeline will update during processing.
                 </p>
               </div>
             ) : null}
-          </CardContent>
+          </div>
         </ScrollArea>
       )}
-    </Card>
+    </section>
   );
 }

@@ -99,14 +99,16 @@ Summaries:
 visualization_instructions = """Create optional visual presentation blocks for the final answer.
 
 Your job:
-- Decide whether the answer benefits from visual formatting.
-- Generate structured visual blocks only when they clarify the answer.
+- Decide whether the answer benefits from visual formatting at all.
+- Generate structured visual blocks only when they clarify the answer better than plain markdown.
+- Do not force a T8 block, an infographic block, or both. The right output may be an empty list.
 - Do not invent facts, numbers, categories, dates, or relationships.
 - Keep the final written answer separate; these blocks are supplementary.
 
 Available block types:
 1. t8
    Use for narrative text visualization: metrics, dimensions, trends, ratios, rankings, deltas, and time descriptions embedded in prose.
+   Also use T8 for compact explanatory text after a figure/diagram when it contains measurable facts, trends, comparisons, rankings, or time references.
    Syntax is T8 markdown.
    Useful entity annotations:
    - [Revenue](metric_name)
@@ -138,8 +140,12 @@ data
       desc Short explanation
 
 Rules:
-- Return at most 3 blocks.
-- If the answer is short or mostly conversational, return an empty blocks list.
+- Return at most 3 blocks, and return fewer when fewer are useful.
+- If the answer is short, mostly conversational, or already clear as markdown, return an empty blocks list.
+- Choose the block type from the content:
+  - Use T8 only when there are concrete metrics, named dimensions, deltas, rankings, ratios, or dates worth highlighting.
+  - Use Infographic only when the answer has structure that benefits from a visual list, flow, timeline, hierarchy, or comparison.
+  - Use both only when each block explains different content; do not duplicate the same points in both formats.
 - Prefer the user's language.
 - For T8, keep syntax concise and readable, around 3-8 lines.
 - For Infographic, keep labels under 24 characters and descriptions under 80 characters.

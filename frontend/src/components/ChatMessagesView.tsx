@@ -1,11 +1,11 @@
 import type React from "react";
 import type { Message } from "@langchain/langgraph-sdk";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Copy, CopyCheck } from "lucide-react";
+import { Loader2, Copy, CopyCheck, Search } from "lucide-react";
 import { InputForm, ModelOption } from "@/components/InputForm";
 import { Button } from "@/components/ui/button";
-import { useState, ReactNode } from "react";
-import ReactMarkdown from "react-markdown";
+import { useState } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,39 +17,32 @@ import {
   ProcessedEvent,
 } from "@/components/ActivityTimeline"; // Assuming ActivityTimeline is in the same dir or adjust path
 
-// Markdown component props type from former ReportView
-type MdComponentProps = {
-  className?: string;
-  children?: ReactNode;
-  [key: string]: any;
-};
-
 // Markdown components (from former ReportView.tsx)
-const mdComponents = {
-  h1: ({ className, children, ...props }: MdComponentProps) => (
+const mdComponents: Components = {
+  h1: ({ className, children, ...props }) => (
     <h1 className={cn("text-2xl font-bold mt-4 mb-2", className)} {...props}>
       {children}
     </h1>
   ),
-  h2: ({ className, children, ...props }: MdComponentProps) => (
+  h2: ({ className, children, ...props }) => (
     <h2 className={cn("text-xl font-bold mt-3 mb-2", className)} {...props}>
       {children}
     </h2>
   ),
-  h3: ({ className, children, ...props }: MdComponentProps) => (
+  h3: ({ className, children, ...props }) => (
     <h3 className={cn("text-lg font-bold mt-3 mb-1", className)} {...props}>
       {children}
     </h3>
   ),
-  p: ({ className, children, ...props }: MdComponentProps) => (
-    <p className={cn("mb-3 leading-7", className)} {...props}>
+  p: ({ className, children, ...props }) => (
+    <p className={cn("mb-4 leading-7 text-slate-700", className)} {...props}>
       {children}
     </p>
   ),
-  a: ({ className, children, href, ...props }: MdComponentProps) => (
-    <Badge className="text-xs mx-0.5">
+  a: ({ className, children, href, ...props }) => (
+    <Badge className="mx-0.5 max-w-full rounded-full border-teal-200 bg-teal-50 px-2 py-0.5 text-xs text-teal-800 hover:bg-teal-100">
       <a
-        className={cn("text-blue-400 hover:text-blue-300 text-xs", className)}
+        className={cn("break-words text-xs text-teal-800 hover:text-teal-900", className)}
         href={href}
         target="_blank"
         rel="noopener noreferrer"
@@ -59,25 +52,25 @@ const mdComponents = {
       </a>
     </Badge>
   ),
-  ul: ({ className, children, ...props }: MdComponentProps) => (
-    <ul className={cn("list-disc pl-6 mb-3", className)} {...props}>
+  ul: ({ className, children, ...props }) => (
+    <ul className={cn("mb-4 list-disc pl-6 text-slate-700", className)} {...props}>
       {children}
     </ul>
   ),
-  ol: ({ className, children, ...props }: MdComponentProps) => (
-    <ol className={cn("list-decimal pl-6 mb-3", className)} {...props}>
+  ol: ({ className, children, ...props }) => (
+    <ol className={cn("mb-4 list-decimal pl-6 text-slate-700", className)} {...props}>
       {children}
     </ol>
   ),
-  li: ({ className, children, ...props }: MdComponentProps) => (
-    <li className={cn("mb-1", className)} {...props}>
+  li: ({ className, children, ...props }) => (
+    <li className={cn("mb-1.5 pl-1", className)} {...props}>
       {children}
     </li>
   ),
-  blockquote: ({ className, children, ...props }: MdComponentProps) => (
+  blockquote: ({ className, children, ...props }) => (
     <blockquote
       className={cn(
-        "border-l-4 border-neutral-600 pl-4 italic my-3 text-sm",
+        "border-l-4 border-slate-300 pl-4 italic my-3 text-sm text-slate-600",
         className
       )}
       {...props}
@@ -85,10 +78,10 @@ const mdComponents = {
       {children}
     </blockquote>
   ),
-  code: ({ className, children, ...props }: MdComponentProps) => (
+  code: ({ className, children, ...props }) => (
     <code
       className={cn(
-        "bg-neutral-900 rounded px-1 py-0.5 font-mono text-xs",
+        "rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-teal-800",
         className
       )}
       {...props}
@@ -96,10 +89,10 @@ const mdComponents = {
       {children}
     </code>
   ),
-  pre: ({ className, children, ...props }: MdComponentProps) => (
+  pre: ({ className, children, ...props }) => (
     <pre
       className={cn(
-        "bg-neutral-900 p-3 rounded-lg overflow-x-auto font-mono text-xs my-3",
+        "my-4 overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50 p-4 font-mono text-xs text-slate-700",
         className
       )}
       {...props}
@@ -107,20 +100,20 @@ const mdComponents = {
       {children}
     </pre>
   ),
-  hr: ({ className, ...props }: MdComponentProps) => (
-    <hr className={cn("border-neutral-600 my-4", className)} {...props} />
+  hr: ({ className, ...props }) => (
+    <hr className={cn("border-slate-200 my-4", className)} {...props} />
   ),
-  table: ({ className, children, ...props }: MdComponentProps) => (
+  table: ({ className, children, ...props }) => (
     <div className="my-3 overflow-x-auto">
       <table className={cn("border-collapse w-full", className)} {...props}>
         {children}
       </table>
     </div>
   ),
-  th: ({ className, children, ...props }: MdComponentProps) => (
+  th: ({ className, children, ...props }) => (
     <th
       className={cn(
-        "border border-neutral-600 px-3 py-2 text-left font-bold",
+        "border border-slate-200 bg-slate-50 px-3 py-2 text-left font-semibold text-slate-900",
         className
       )}
       {...props}
@@ -128,9 +121,9 @@ const mdComponents = {
       {children}
     </th>
   ),
-  td: ({ className, children, ...props }: MdComponentProps) => (
+  td: ({ className, children, ...props }) => (
     <td
-      className={cn("border border-neutral-600 px-3 py-2", className)}
+      className={cn("border border-slate-200 px-3 py-2 text-slate-700", className)}
       {...props}
     >
       {children}
@@ -149,30 +142,54 @@ const HumanMessageBubble: React.FC<HumanMessageBubbleProps> = ({
   message,
   mdComponents,
 }) => {
+  const messageText = getMessageText(message);
+
   return (
-    <div
-      className={`text-white rounded-3xl break-words min-h-7 bg-neutral-700 max-w-[100%] sm:max-w-[90%] px-4 pt-3 rounded-br-lg`}
-    >
-      <ReactMarkdown components={mdComponents}>
-        {typeof message.content === "string"
-          ? message.content
-          : JSON.stringify(message.content)}
-      </ReactMarkdown>
+    <div className="max-w-[100%] rounded-2xl rounded-br-md border border-teal-700 bg-teal-700 px-4 py-3 text-white shadow-sm sm:max-w-[90%] [&_*]:text-white">
+      <ReactMarkdown components={mdComponents}>{messageText}</ReactMarkdown>
     </div>
   );
 };
 
+function stringifyContentPart(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(stringifyContentPart).join("");
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (typeof record.text === "string") return record.text;
+    if (typeof record.content === "string") return record.content;
+    if (Array.isArray(record.content)) return record.content.map(stringifyContentPart).join("");
+  }
+  return JSON.stringify(value);
+}
+
+function normalizePythonTextParts(text: string) {
+  if (!text.trim().startsWith("[{") || !text.includes("'text'")) return text;
+
+  const matches = [...text.matchAll(/['"]text['"]:\s*(['"])([\s\S]*?)\1\s*(?:, ['"]annotations['"]|, ['"]type['"]|})/g)];
+  if (matches.length === 0) return text;
+  return matches.map((match) => match[2]).join("");
+}
+
 function getMessageText(message: Message) {
-  return typeof message.content === "string"
-    ? message.content
-    : JSON.stringify(message.content);
+  return normalizePythonTextParts(stringifyContentPart(message.content));
 }
 
 function isInternalQueryMessage(message: Message) {
-  if (message.type !== "ai") return false;
+  if (message.type === "human") return false;
 
-  const text = getMessageText(message).trim();
+  let text = getMessageText(message).trim();
+  text = text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
   if (!text.startsWith("{")) return false;
+  if (/^\{\s*["']query["']\s*:/.test(text)) return true;
+  if (text.includes('"query"') && text.includes("[") && !text.includes("Final answer:")) {
+    return true;
+  }
 
   try {
     const parsed = JSON.parse(text);
@@ -222,9 +239,9 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   );
 
   return (
-    <div className={`relative break-words flex flex-col`}>
+    <div className="relative flex min-w-0 flex-col break-words rounded-2xl border border-slate-200 bg-white/90 px-5 py-4 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
       {activityForThisBubble && activityForThisBubble.length > 0 && (
-        <div className="mb-3 border-b border-neutral-700 pb-3 text-xs">
+        <div className="mb-4 border-b border-slate-200 pb-4 text-xs">
           <ActivityTimeline
             processedEvents={activityForThisBubble}
             isLoading={isLiveActivityForThisBubble}
@@ -232,10 +249,12 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         </div>
       )}
       {showVisualBlocks && <AnswerVisualBlocks blocks={visualBlocks} />}
-      <ReactMarkdown components={mdComponents}>{messageText}</ReactMarkdown>
+      <div className="max-w-none [overflow-wrap:anywhere]">
+        <ReactMarkdown components={mdComponents}>{messageText}</ReactMarkdown>
+      </div>
       <Button
         variant="default"
-        className={`cursor-pointer bg-neutral-700 border-neutral-600 text-neutral-300 self-end ${
+        className={`mt-2 h-9 cursor-pointer self-end rounded-full border border-slate-200 bg-white px-3 text-slate-600 shadow-none hover:bg-slate-50 ${
           messageText.length > 0 ? "visible" : "hidden"
         }`}
         onClick={() => handleCopy(messageText, message.id!)}
@@ -283,18 +302,14 @@ export function ChatMessagesView({
     }
   };
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       <ScrollArea className="flex-1 overflow-y-auto" ref={scrollAreaRef}>
-        <div className="p-4 md:p-6 space-y-2 max-w-4xl mx-auto pt-16">
+        <div className="mx-auto max-w-5xl space-y-4 px-4 pb-6 pt-10 md:px-6 md:pt-14">
           {visibleMessages.map((message, index) => {
             const isLast = index === visibleMessages.length - 1;
             return (
               <div key={message.id || `msg-${index}`} className="space-y-3">
-                <div
-                  className={`flex items-start gap-3 ${
-                    message.type === "human" ? "justify-end" : ""
-                  }`}
-                >
+                <div className={`flex items-start gap-3 ${message.type === "human" ? "justify-end" : ""}`}>
                   {message.type === "human" ? (
                     <HumanMessageBubble
                       message={message}
@@ -319,10 +334,8 @@ export function ChatMessagesView({
           {isLoading &&
             (visibleMessages.length === 0 ||
               visibleMessages[visibleMessages.length - 1].type === "human") && (
-              <div className="flex items-start gap-3 mt-3">
-                {" "}
-                {/* AI message row structure */}
-                <div className="relative group max-w-[85%] md:max-w-[80%] rounded-xl p-3 shadow-sm break-words bg-neutral-800 text-neutral-100 rounded-bl-none w-full min-h-[56px]">
+              <div className="mt-3 flex items-start gap-3">
+                <div className="group relative min-h-[64px] w-full max-w-[92%] rounded-2xl border border-slate-200 bg-white/90 p-4 text-slate-900 shadow-[0_18px_60px_rgba(15,23,42,0.08)] md:max-w-[82%]">
                   {liveActivityEvents.length > 0 ? (
                     <div className="text-xs">
                       <ActivityTimeline
@@ -331,9 +344,19 @@ export function ChatMessagesView({
                       />
                     </div>
                   ) : (
-                    <div className="flex items-center justify-start h-full">
-                      <Loader2 className="h-5 w-5 animate-spin text-neutral-400 mr-2" />
-                      <span>Processing...</span>
+                    <div className="flex h-full items-center justify-start gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-teal-700">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </span>
+                      <div>
+                        <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                          <Search className="h-4 w-4 text-teal-700" />
+                          Researching
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Preparing sources and drafting the answer.
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -25,7 +25,6 @@ from agent.prompts import (
     visualization_instructions,
 )
 from agent.model_registry import invoke_structured_model, invoke_text_model
-from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.utils import (
     get_citations,
     get_research_topic,
@@ -63,15 +62,6 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
     if state.get("initial_search_query_count") is None:
         state["initial_search_query_count"] = configurable.number_of_initial_queries
 
-    # Initialize the query model.
-    llm = ChatGoogleGenerativeAI(
-        model=configurable.query_generator_model,
-        temperature=1.0,
-        max_retries=2,
-        api_key=web_research_api_key,
-    )
-    structured_llm = llm.with_structured_output(SearchQueryList)
-
     # Format the prompt
     current_date = get_current_date()
     formatted_prompt = query_writer_instructions.format(
@@ -80,7 +70,14 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
         number_queries=state["initial_search_query_count"],
     )
     # Generate the search queries
-    result = structured_llm.invoke(formatted_prompt)
+    query_model = state.get("reasoning_model") or configurable.query_generator_model
+    result = invoke_structured_model(
+        query_model,
+        formatted_prompt,
+        SearchQueryList,
+        temperature=1.0,
+        api_key=web_research_api_key,
+    )
     return {"search_query": result.query}
 
 

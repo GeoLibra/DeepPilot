@@ -21,6 +21,36 @@ class TextResponse(BaseModel):
     content: str
 
 
+def _content_to_text(content: Any) -> str:
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        chunks: list[str] = []
+        for item in content:
+            if isinstance(item, str):
+                chunks.append(item)
+            elif isinstance(item, dict):
+                text = item.get("text") or item.get("content")
+                if isinstance(text, str):
+                    chunks.append(text)
+            else:
+                text = getattr(item, "text", None) or getattr(item, "content", None)
+                if isinstance(text, str):
+                    chunks.append(text)
+        if chunks:
+            return "".join(chunks)
+    if isinstance(content, dict):
+        text = content.get("text") or content.get("content")
+        if isinstance(text, str):
+            return text
+    text = getattr(content, "text", None) or getattr(content, "content", None)
+    if isinstance(text, str):
+        return text
+    return str(content)
+
+
 def _resolve_env_value(value: Any) -> Any:
     if isinstance(value, str) and value.startswith("$"):
         env_name = value[1:]
@@ -28,6 +58,12 @@ def _resolve_env_value(value: Any) -> Any:
         if not resolved:
             raise ValueError(f"Environment variable {env_name} is not set")
         return resolved
+    return value
+
+
+def _resolve_optional_env_value(value: Any) -> Any:
+    if isinstance(value, str) and value.startswith("$"):
+        return os.getenv(value[1:])
     return value
 
 
@@ -54,9 +90,16 @@ def load_model_configs() -> dict[str, dict[str, Any]]:
 
 
 def list_model_options() -> list[dict[str, Any]]:
+    show_google_models = os.getenv("ENABLE_GOOGLE_MODELS", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
     seen: set[str] = set()
     options: list[dict[str, Any]] = []
     for model in load_model_configs().values():
+        if model.get("use") == "google_genai" and not show_google_models:
+            continue
         name = model.get("name")
         if not isinstance(name, str) or name in seen:
             continue
@@ -155,6 +198,32 @@ def _invoke_openai_compatible(
     return completion.choices[0].message.content or ""
 
 
+def _google_api_key(model_config: dict[str, Any], fallback: str | None = None) -> str | None:
+    return (
+        fallback
+        or _resolve_optional_env_value(model_config.get("api_key"))
+        or os.getenv("WEB_RESEARCH_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+    )
+
+
+def _invoke_google_text_model(
+    model_config: dict[str, Any],
+    prompt: str,
+    *,
+    temperature: float,
+    api_key: str | None = None,
+) -> str:
+    llm = ChatGoogleGenerativeAI(
+        model=model_config.get("model") or model_config.get("name"),
+        temperature=model_config.get("temperature", temperature),
+        max_retries=2,
+        api_key=_google_api_key(model_config, api_key),
+    )
+    result = llm.invoke(prompt)
+    return _content_to_text(result.content)
+
+
 def _extract_json_object(text: str) -> dict[str, Any]:
     fenced = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text)
     if fenced:
@@ -176,6 +245,15 @@ def invoke_text_model(
 ) -> TextResponse:
     model_config = _get_model_config(model_name)
     if model_config:
+        if model_config.get("use") == "google_genai":
+            return TextResponse(
+                content=_invoke_google_text_model(
+                    model_config,
+                    prompt,
+                    temperature=temperature,
+                    api_key=api_key,
+                )
+            )
         return TextResponse(
             content=_invoke_openai_compatible(
                 model_config,
@@ -193,7 +271,7 @@ def invoke_text_model(
         or os.getenv("GEMINI_API_KEY"),
     )
     result = llm.invoke(prompt)
-    return TextResponse(content=str(result.content))
+    return TextResponse(content=_content_to_text(result.content))
 
 
 def invoke_structured_model(
@@ -206,6 +284,15 @@ def invoke_structured_model(
 ) -> StructuredOutput:
     model_config = _get_model_config(model_name)
     if model_config:
+        if model_config.get("use") == "google_genai":
+            llm = ChatGoogleGenerativeAI(
+                model=model_config.get("model") or model_config.get("name"),
+                temperature=model_config.get("temperature", temperature),
+                max_retries=2,
+                api_key=_google_api_key(model_config, api_key),
+            )
+            return llm.with_structured_output(output_schema).invoke(prompt)
+
         schema_prompt = (
             f"{prompt}\n\n"
             "Return only a valid JSON object matching this JSON schema. "

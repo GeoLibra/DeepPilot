@@ -17,16 +17,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   isLoading,
   modelOptions,
 }) => (
-  <div className="h-full flex flex-col items-center justify-center text-center px-4 flex-1 w-full max-w-3xl mx-auto gap-4">
-    <div>
-      <h1 className="text-5xl md:text-6xl font-semibold text-neutral-100 mb-3">
-        Welcome.
-      </h1>
-      <p className="text-xl md:text-2xl text-neutral-400">
-        How can I help you today?
+  <div className="mx-auto flex h-full w-full max-w-4xl flex-1 flex-col items-center justify-center gap-5 px-4 text-center">
+    <div className="space-y-2">
+      <p className="text-sm font-semibold uppercase tracking-[0.24em] text-teal-700">
+        DeepPilot Research
+      </p>
+      <p className="mx-auto max-w-2xl text-base leading-7 text-slate-600 md:text-lg">
+        Search, compare sources, and turn messy context into a cited briefing.
       </p>
     </div>
-    <div className="w-full mt-4">
+    <div className="w-full">
       <InputForm
         onSubmit={handleSubmit}
         isLoading={isLoading}

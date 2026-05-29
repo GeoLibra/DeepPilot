@@ -1,208 +1,26 @@
 import type React from "react";
 import type { Message } from "@langchain/langgraph-sdk";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Copy, CopyCheck, Search } from "lucide-react";
-import { InputForm, ModelOption } from "@/components/InputForm";
+import { Copy, CopyCheck, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InputForm } from "@/components/InputForm";
+import type { ModelOption } from "@/types";
 import { useState, useMemo } from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
+import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { cn } from "@/lib/utils";
-import {
-  AnswerVisualBlocks,
-  getVisualBlocks,
-} from "@/components/AnswerVisualBlocks";
+import { AnswerVisualBlocks } from "@/components/AnswerVisualBlocks";
 import {
   ActivityTimeline,
   ProcessedEvent,
 } from "@/components/ActivityTimeline"; // Assuming ActivityTimeline is in the same dir or adjust path
 
-// Markdown components (from former ReportView.tsx)
-const mdComponents: Components = {
-  h1: ({ className, children, ...props }) => (
-    <h1 className={cn("text-2xl font-bold mt-4 mb-2", className)} {...props}>
-      {children}
-    </h1>
-  ),
-  h2: ({ className, children, ...props }) => (
-    <h2 className={cn("text-xl font-bold mt-3 mb-2", className)} {...props}>
-      {children}
-    </h2>
-  ),
-  h3: ({ className, children, ...props }) => (
-    <h3 className={cn("text-lg font-bold mt-3 mb-1", className)} {...props}>
-      {children}
-    </h3>
-  ),
-  p: ({ className, children, ...props }) => (
-    <p className={cn("mb-4 leading-7 text-slate-700", className)} {...props}>
-      {children}
-    </p>
-  ),
-  a: ({ className, children, href, ...props }) => (
-    <a
-      className={cn(
-        "inline-flex items-center justify-center relative -top-1.5 text-[9px] font-bold text-teal-700 hover:bg-teal-100 hover:text-teal-900 mx-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-teal-50 border border-teal-200 no-underline transition-colors cursor-pointer",
-        className
-      )}
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      {...props}
-    >
-      {children}
-    </a>
-  ),
-  ul: ({ className, children, ...props }) => (
-    <ul className={cn("mb-4 list-disc pl-6 text-slate-700", className)} {...props}>
-      {children}
-    </ul>
-  ),
-  ol: ({ className, children, ...props }) => (
-    <ol className={cn("mb-4 list-decimal pl-6 text-slate-700", className)} {...props}>
-      {children}
-    </ol>
-  ),
-  li: ({ className, children, ...props }) => (
-    <li className={cn("mb-1.5 pl-1", className)} {...props}>
-      {children}
-    </li>
-  ),
-  blockquote: ({ className, children, ...props }) => (
-    <blockquote
-      className={cn(
-        "border-l-4 border-slate-300 pl-4 italic my-3 text-sm text-slate-600",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </blockquote>
-  ),
-  code: ({ className, children, ...props }) => (
-    <code
-      className={cn(
-        "rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-teal-800",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </code>
-  ),
-  pre: ({ className, children, ...props }) => (
-    <pre
-      className={cn(
-        "my-4 overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50 p-4 font-mono text-xs text-slate-700",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </pre>
-  ),
-  hr: ({ className, ...props }) => (
-    <hr className={cn("border-slate-200 my-4", className)} {...props} />
-  ),
-  table: ({ className, children, ...props }) => (
-    <div className="my-3 overflow-x-auto">
-      <table className={cn("border-collapse w-full", className)} {...props}>
-        {children}
-      </table>
-    </div>
-  ),
-  th: ({ className, children, ...props }) => (
-    <th
-      className={cn(
-        "border border-slate-200 bg-slate-50 px-3 py-2 text-left font-semibold text-slate-900",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </th>
-  ),
-  td: ({ className, children, ...props }) => (
-    <td
-      className={cn("border border-slate-200 px-3 py-2 text-slate-700", className)}
-      {...props}
-    >
-      {children}
-    </td>
-  ),
-};
-
-const humanMdComponents: Components = {
-  ...mdComponents,
-  a: ({ className, children, href, ...props }) => (
-    <a
-      className={cn("underline underline-offset-4 hover:text-teal-200 transition-colors", className)}
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      {...props}
-    >
-      {children}
-    </a>
-  ),
-};
-
-function processMessageCitations(text: string) {
-  const references: { id: number; label: string; url: string }[] = [];
-  const urlToId = new Map<string, number>();
-
-  function cleanUrl(rawUrl: string) {
-    return rawUrl.trim().replace(/[.,;:!?，。；：！？、]+$/g, "");
-  }
-
-  function getOrCreateRef(url: string, label: string): number {
-    const cleanedUrl = cleanUrl(url);
-    let id = urlToId.get(cleanedUrl);
-    if (id === undefined) {
-      id = references.length + 1;
-      urlToId.set(cleanedUrl, id);
-      references.push({ id, label, url: cleanedUrl });
-    }
-    return id;
-  }
-
-  const urlPattern = String.raw`https?:\/\/[^\s)\]，。；：！？、]+`;
-
-  // Normalize links where the model inserted whitespace/newlines after "](".
-  let normalizedText = text.replace(
-    new RegExp(String.raw`(!?)\[([^\]]+)\]\(\s*(${urlPattern})\s*\)`, "g"),
-    (match, isImage, label, url) => {
-      if (isImage) return match;
-      return `[${label}](${cleanUrl(url)})`;
-    }
-  );
-
-  // Recover common malformed markdown like "[16](\nhttps://example...".
-  normalizedText = normalizedText.replace(
-    new RegExp(String.raw`\[([^\]]+)\]\(\s*(${urlPattern})`, "g"),
-    (_match, label, url) => `[${label}](${cleanUrl(url)})`
-  );
-
-  // Step 1: Convert standard markdown links [label](url) to numbered citations
-  let processedText = normalizedText.replace(/(!?)\[([^\]]+)\]\(([^)]+)\)/g, (match, isImage, label, url) => {
-    if (isImage) return match;
-    const id = getOrCreateRef(url, label);
-    return `[${id}](${cleanUrl(url)})`;
-  });
-
-  // Step 2: Convert bare URLs that are not already inside markdown links
-  // This catches cases where the backend emits raw URLs like https://example.com
-  processedText = processedText.replace(
-    new RegExp(String.raw`(?<!\]\()(?<!\()(${urlPattern})`, "g"),
-    (bareUrl) => {
-      // Skip if this URL is already part of a markdown link (extra safety)
-      const id = getOrCreateRef(bareUrl, bareUrl);
-      return `[${id}](${cleanUrl(bareUrl)})`;
-    }
-  );
-
-  return { processedText, references };
-}
+import { mdComponents, humanMdComponents } from "./markdown-components";
+import {
+  processMessageCitations,
+  getCleanMessageText,
+  isInternalQueryMessage,
+  getVisualBlocks,
+} from "@/lib/message-utils";
 
 // Props for HumanMessageBubble
 interface HumanMessageBubbleProps {
@@ -213,7 +31,7 @@ interface HumanMessageBubbleProps {
 const HumanMessageBubble: React.FC<HumanMessageBubbleProps> = ({
   message,
 }) => {
-  const messageText = getMessageText(message);
+  const messageText = getCleanMessageText(message);
 
   return (
     <div className="max-w-[100%] rounded-2xl rounded-br-md border border-teal-700 bg-teal-700 px-4 py-3 text-white shadow-sm sm:max-w-[90%] [&_*]:text-white [&_p:last-child]:mb-0">
@@ -221,58 +39,6 @@ const HumanMessageBubble: React.FC<HumanMessageBubbleProps> = ({
     </div>
   );
 };
-
-function stringifyContentPart(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value.map(stringifyContentPart).join("");
-  if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    if (typeof record.text === "string") return record.text;
-    if (typeof record.content === "string") return record.content;
-    if (Array.isArray(record.content)) return record.content.map(stringifyContentPart).join("");
-  }
-  return JSON.stringify(value);
-}
-
-function normalizePythonTextParts(text: string) {
-  if (!text.trim().startsWith("[{") || !text.includes("'text'")) return text;
-
-  const matches = [...text.matchAll(/['"]text['"]:\s*(['"])([\s\S]*?)\1\s*(?:, ['"]annotations['"]|, ['"]type['"]|})/g)];
-  if (matches.length === 0) return text;
-  return matches.map((match) => match[2]).join("");
-}
-
-function getMessageText(message: Message) {
-  return normalizePythonTextParts(stringifyContentPart(message.content));
-}
-
-function isInternalQueryMessage(message: Message) {
-  if (message.type === "human") return false;
-
-  let text = getMessageText(message).trim();
-  text = text
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-
-  if (!text.startsWith("{")) return false;
-  if (/^\{\s*["']query["']\s*:/.test(text)) return true;
-  if (text.includes('"query"') && text.includes("[") && !text.includes("Final answer:")) {
-    return true;
-  }
-
-  try {
-    const parsed = JSON.parse(text);
-    return (
-      Array.isArray(parsed.query) &&
-      parsed.query.every((query: unknown) => typeof query === "string") &&
-      (parsed.rationale === undefined || typeof parsed.rationale === "string")
-    );
-  } catch {
-    return false;
-  }
-}
 
 // Props for AiMessageBubble
 interface AiMessageBubbleProps {
@@ -301,7 +67,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const activityForThisBubble =
     isLastMessage && isOverallLoading ? liveActivity : historicalActivity;
   const isLiveActivityForThisBubble = isLastMessage && isOverallLoading;
-  const rawMessageText = getMessageText(message);
+  const rawMessageText = getCleanMessageText(message);
   
   const { processedText, references } = useMemo(
     () => processMessageCitations(rawMessageText),

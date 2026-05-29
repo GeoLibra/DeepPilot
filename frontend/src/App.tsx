@@ -5,77 +5,20 @@ import { ProcessedEvent } from "@/components/ActivityTimeline";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatMessagesView } from "@/components/ChatMessagesView";
 import { SessionSidebar } from "@/components/SessionSidebar";
-import type { ModelOption } from "@/components/InputForm";
+import type { ModelOption, StreamUpdateEvent } from "@/types";
+import { FALLBACK_MODEL_OPTIONS, ACTIVE_THREAD_STORAGE_KEY, RECENT_SESSION_RESTORE_MS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/message-utils";
 import {
-  getSessionMessages,
   listSessions,
   renameSession,
   updateSessionAfterRun,
-  type AgentState,
-  type LastRunDetails,
-  type SessionSummary,
+  getSessionMessages,
 } from "@/lib/sessions";
-
-const FALLBACK_MODEL_OPTIONS: ModelOption[] = [
-  {
-    name: "deepseek-v4-pro",
-    display_name: "DeepSeek V4 Pro (NVIDIA)",
-  },
-  {
-    name: "kimi-k2.6",
-    display_name: "Kimi K2.6 (NVIDIA)",
-    supports_thinking: true,
-    supports_vision: true,
-  },
-  {
-    name: "deepseek-v4-flash",
-    display_name: "DeepSeek V4 Flash (NVIDIA)",
-    supports_thinking: true,
-  },
-  {
-    name: "glm-5.1",
-    display_name: "GLM 5.1 (NVIDIA)",
-    supports_thinking: true,
-  },
-  {
-    name: "minimax-m2.7",
-    display_name: "Minimax M2.7 (NVIDIA)",
-  },
-  {
-    name: "gpt-5.5",
-    display_name: "GPT-5.5 (OpenAI)",
-  },
-];
-
-type SourceEvent = {
-  label?: string;
-};
-
-type StreamUpdateEvent = {
-  generate_query?: {
-    search_query?: string[];
-  };
-  web_research?: {
-    sources_gathered?: SourceEvent[];
-  };
-  reflection?: unknown;
-  finalize_answer?: unknown;
-  visualize_answer?: {
-    visual_blocks?: unknown[];
-  };
-};
-
-const ACTIVE_THREAD_STORAGE_KEY = "deeppilot.activeThreadId";
-const RECENT_SESSION_RESTORE_MS = 12 * 60 * 60 * 1000;
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error && "message" in error) {
-    const message = (error as { message?: unknown }).message;
-    return typeof message === "string" ? message : JSON.stringify(message);
-  }
-  return String(error);
-}
+import type {
+  AgentState,
+  LastRunDetails,
+  SessionSummary,
+} from "@/types";
 
 export default function App() {
   const apiUrl = import.meta.env.DEV

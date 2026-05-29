@@ -11,15 +11,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-export type ModelOption = {
-  name: string;
-  display_name: string;
-  model?: string;
-  supports_thinking?: boolean;
-  supports_vision?: boolean;
-};
-
-const DEFAULT_MODEL_NAME = "deepseek-v4-pro";
+import type { ModelOption } from "@/types";
+import { DEFAULT_MODEL_NAME } from "@/lib/constants";
 
 interface InputFormProps {
   onSubmit: (inputValue: string, effort: string, model: string) => void;

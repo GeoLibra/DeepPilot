@@ -13,10 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import {
-  filterSessions,
-  type SessionSummary,
-} from "@/lib/sessions";
+import { filterSessions } from "@/lib/sessions";
+import type { SessionSummary } from "@/types";
 
 interface SessionSidebarProps {
   sessions: SessionSummary[];

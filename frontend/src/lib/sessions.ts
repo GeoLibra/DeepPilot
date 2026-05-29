@@ -1,61 +1,16 @@
 import type { Client, Message, Metadata, Thread } from "@langchain/langgraph-sdk";
-
-export type AgentState = {
-  messages: Message[];
-  initial_search_query_count: number;
-  max_research_loops: number;
-  reasoning_model: string;
-};
-
-export type SessionSummary = {
-  id: string;
-  title: string;
-  preview: string;
-  createdAt: string;
-  updatedAt: string;
-  status: string;
-  messageCount: number;
-  model?: string;
-  effort?: string;
-};
-
-export type LastRunDetails = {
-  input: string;
-  effort: string;
-  model: string;
-};
-
-const APP_METADATA_KEY = "deeppilot";
-const DEFAULT_SESSION_TITLE = "Untitled session";
-const SESSION_TITLE_LENGTH = 56;
-const SESSION_PREVIEW_LENGTH = 120;
+import type { AgentState, SessionSummary, LastRunDetails } from "@/types";
+import {
+  APP_METADATA_KEY,
+  DEFAULT_SESSION_TITLE,
+  SESSION_TITLE_LENGTH,
+  SESSION_PREVIEW_LENGTH,
+} from "./constants";
+import { getPreviewMessageText, normalizeWhitespace } from "./message-utils";
 
 function getMetadataString(metadata: Metadata | undefined, key: string) {
   const value = metadata?.[key];
   return typeof value === "string" ? value : undefined;
-}
-
-function stringifyContentPart(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value.map(stringifyContentPart).join("");
-  if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    if (typeof record.text === "string") return record.text;
-    if (typeof record.content === "string") return record.content;
-    if (Array.isArray(record.content)) {
-      return record.content.map(stringifyContentPart).join("");
-    }
-  }
-  return JSON.stringify(value);
-}
-
-function normalizeWhitespace(value: string) {
-  return value.replace(/\s+/g, " ").trim();
-}
-
-export function getMessageText(message: Message) {
-  return normalizeWhitespace(stringifyContentPart(message.content));
 }
 
 function truncateText(value: string, maxLength: number) {
@@ -94,10 +49,10 @@ export function threadToSessionSummary(thread: Thread<AgentState>): SessionSumma
     "last_message_preview"
   );
   const firstHumanText = getFirstHumanMessage(messages)
-    ? getMessageText(getFirstHumanMessage(messages)!)
+    ? getPreviewMessageText(getFirstHumanMessage(messages)!)
     : "";
   const lastMessageText = getLastMessage(messages)
-    ? getMessageText(getLastMessage(messages)!)
+    ? getPreviewMessageText(getLastMessage(messages)!)
     : "";
 
   return {
@@ -173,10 +128,10 @@ export async function updateSessionAfterRun(
   const existingTitle = getMetadataString(thread.metadata, "title");
   const titleSource = getMetadataString(thread.metadata, "title_source");
   const firstHumanText = getFirstHumanMessage(messages)
-    ? getMessageText(getFirstHumanMessage(messages)!)
+    ? getPreviewMessageText(getFirstHumanMessage(messages)!)
     : "";
   const lastMessageText = getLastMessage(messages)
-    ? getMessageText(getLastMessage(messages)!)
+    ? getPreviewMessageText(getLastMessage(messages)!)
     : "";
 
   const shouldKeepTitle = existingTitle && titleSource === "user";

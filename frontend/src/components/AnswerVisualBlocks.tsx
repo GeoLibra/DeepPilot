@@ -4,39 +4,15 @@ import { BarChart3, FileText } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
-export type VisualBlock = {
-  type: "t8" | "infographic";
-  title: string;
-  purpose?: string;
-  syntax: string;
-  priority?: number;
-};
+import type { VisualBlock } from "@/types";
+
+const INFOGRAPHIC_HEIGHT = 200;
 
 interface AnswerVisualBlocksProps {
   blocks: VisualBlock[];
 }
 
-const INFOGRAPHIC_HEIGHT = 200;
 
-function isVisualBlock(value: unknown): value is VisualBlock {
-  if (!value || typeof value !== "object") return false;
-
-  const block = value as Record<string, unknown>;
-  return (
-    (block.type === "t8" || block.type === "infographic") &&
-    typeof block.title === "string" &&
-    typeof block.syntax === "string" &&
-    block.syntax.trim().length > 0
-  );
-}
-
-export function getVisualBlocks(value: unknown): VisualBlock[] {
-  if (!Array.isArray(value)) return [];
-
-  return value
-    .filter(isVisualBlock)
-    .sort((left, right) => (left.priority ?? 0) - (right.priority ?? 0));
-}
 
 function T8Block({ block }: { block: VisualBlock }) {
   const containerRef = useRef<HTMLDivElement | null>(null);

@@ -1,4 +1,5 @@
-import { InputForm, ModelOption } from "./InputForm";
+import { InputForm } from "./InputForm";
+import type { ModelOption } from "@/types";
 import { ParticleBackground } from "./ParticleBackground";
 
 interface WelcomeScreenProps {

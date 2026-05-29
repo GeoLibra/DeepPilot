@@ -119,14 +119,21 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       )}
 
       <Button
-        variant="default"
-        className={`mt-2 h-9 cursor-pointer self-end rounded-full border border-slate-200 bg-white px-3 text-slate-600 shadow-none hover:bg-slate-50 ${
+        type="button"
+        variant="ghost"
+        size="icon"
+        className={`mt-2 h-8 w-8 cursor-pointer self-end rounded-full border border-slate-200 bg-white p-0 text-slate-500 shadow-none hover:bg-slate-50 hover:text-slate-800 ${
           rawMessageText.length > 0 ? "visible" : "hidden"
         }`}
         onClick={() => handleCopy(rawMessageText, message.id!)}
+        aria-label={copiedMessageId === message.id ? "Copied" : "Copy answer"}
+        title={copiedMessageId === message.id ? "Copied" : "Copy answer"}
       >
-        {copiedMessageId === message.id ? "Copied" : "Copy"}
-        {copiedMessageId === message.id ? <CopyCheck /> : <Copy />}
+        {copiedMessageId === message.id ? (
+          <CopyCheck className="h-4 w-4 text-teal-700" />
+        ) : (
+          <Copy className="h-4 w-4" />
+        )}
       </Button>
     </div>
   );

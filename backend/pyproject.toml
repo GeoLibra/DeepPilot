@@ -14,8 +14,6 @@ dependencies = [
     "langchain-google-genai",
     "python-dotenv>=1.0.1",
     "langgraph-sdk>=0.1.57",
-    "langgraph-cli",
-    "langgraph-api",
     "fastapi",
     "google-genai",
     "openai",
@@ -57,5 +55,6 @@ convention = "google"
 [dependency-groups]
 dev = [
     "langgraph-cli[inmem]>=0.1.71",
+    "langgraph-api",
     "pytest>=8.3.5",
 ]

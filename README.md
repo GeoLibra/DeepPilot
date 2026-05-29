@@ -9,7 +9,7 @@ DeepPilot is a full-stack research assistant. It takes a user question, generate
 ├── frontend/              # React frontend
 ├── backend/               # LangGraph/FastAPI backend
 ├── Dockerfile             # Combined frontend/backend image
-├── docker-compose.yml     # Local production-style services
+├── docker-compose.yml     # Local database and containerized service definitions
 └── Makefile               # Install and development commands
 ```
 
@@ -51,6 +51,7 @@ Prerequisites:
 - Node.js 20+
 - Python 3.11+
 - uv
+- Docker Desktop, for local Postgres/Redis only
 
 Install all dependencies:
 
@@ -71,7 +72,7 @@ Default local URLs:
 - Database UI: `http://127.0.0.1:8080`
 - LangGraph Studio: `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2026`
 
-`make dev` starts the database-backed local stack: Postgres, Redis, Adminer, the LangGraph API container, and the Vite frontend. This keeps local session storage close to the Docker/production-style runtime instead of using LangGraph's file-backed `.langgraph_api` development cache.
+`make dev` starts Postgres, Redis, and Adminer in Docker, then runs the LangGraph backend through the local uv environment and the frontend through Vite. This keeps local session storage database-backed without requiring developers to install database software or build the backend Docker image for normal development.
 
 If Docker Desktop reports that no space is left on device, restart Docker Desktop and clear only build cache first:
 
@@ -79,13 +80,19 @@ If Docker Desktop reports that no space is left on device, restart Docker Deskto
 make docker-prune-build-cache
 ```
 
-The project includes `.dockerignore` so local `node_modules`, `.venv`, and `.langgraph_api` caches are not sent into Docker builds. `make dev` does not force rebuilds every time; rebuild the API image explicitly after backend or Dockerfile changes:
+The project includes `.dockerignore` so local `node_modules`, `.venv`, and `.langgraph_api` caches are not sent into Docker builds. `make dev` does not build the backend image. Build it explicitly only when you want to test the containerized API:
 
 ```bash
 make docker-build
 ```
 
-To use the old file-backed hot-reload LangGraph dev server, run:
+To run the containerized backend instead of the local uv backend, use:
+
+```bash
+make dev-backend-container
+```
+
+To use the old file-backed LangGraph dev server, run:
 
 ```bash
 make dev-local
@@ -137,7 +144,7 @@ uv run python scripts/migrate_local_sessions.py
 `make dev` supports hot reload for normal development:
 
 - Frontend changes under `frontend/src` are handled by Vite HMR and usually update in the browser without a restart.
-- Backend Python changes in the default DB-backed Docker API require restarting the backend container. Use `make dev-local` when you specifically want LangGraph's file-backed hot reload loop.
+- Backend Python changes are handled by the local LangGraph development server.
 - Dependency changes, `.env` changes, `backend/config.yaml` changes, or Makefile changes may require stopping `make dev` and running it again.
 - If the virtual environment was moved from another directory or command scripts look stale, run `make install` once to rebuild them.
 

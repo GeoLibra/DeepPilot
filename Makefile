@@ -1,4 +1,7 @@
-.PHONY: help install install-frontend install-backend docker-check docker-build docker-prune-build-cache db-pull db-up db-down db-reset db-ui dev-frontend dev-backend dev-backend-local dev-local dev
+.PHONY: help install install-frontend install-backend docker-check docker-build docker-prune-build-cache db-pull db-up db-down db-reset db-ui dev-frontend dev-backend dev-backend-server dev-backend-container dev-backend-file dev-backend-local dev-local dev
+
+LOCAL_DATABASE_URI ?= postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable
+LOCAL_REDIS_URI ?= redis://127.0.0.1:6379
 
 help:
 	@echo "Available commands:"
@@ -14,9 +17,10 @@ help:
 	@echo "  make db-reset        - Removes local database volumes"
 	@echo "  make db-ui           - Starts Adminer database UI"
 	@echo "  make dev-frontend    - Starts the frontend development server (Vite)"
-	@echo "  make dev-backend     - Starts the database-backed LangGraph API in Docker"
+	@echo "  make dev-backend     - Starts local uv LangGraph API backed by Docker DB services"
+	@echo "  make dev-backend-container - Starts the containerized LangGraph API"
 	@echo "  make dev-local       - Starts the old file-backed local LangGraph dev server"
-	@echo "  make dev             - Starts DB-backed backend and frontend"
+	@echo "  make dev             - Starts local frontend/backend with Docker DB services"
 
 install-frontend:
 	@echo "Installing frontend dependencies..."
@@ -66,20 +70,32 @@ dev-frontend:
 	@echo "Starting frontend development server..."
 	@cd frontend && npm run dev
 
-dev-backend: docker-check
-	@echo "Starting database-backed LangGraph API..."
+dev-backend: db-up dev-backend-server
+
+dev-backend-server:
+	@echo "Starting local database-backed LangGraph API..."
+	@cd backend && \
+		DATABASE_URI="$(LOCAL_DATABASE_URI)" \
+		POSTGRES_URI="$(LOCAL_DATABASE_URI)" \
+		REDIS_URI="$(LOCAL_REDIS_URI)" \
+		uv run --group dev --with-editable . langgraph dev --port 2026
+
+dev-backend-container: docker-check
+	@echo "Starting containerized database-backed LangGraph API..."
 	@docker compose up langgraph-api
 
-dev-backend-local:
+dev-backend-file:
 	@echo "Starting file-backed local LangGraph development server..."
 	@cd backend && uv run --group dev --with-editable . langgraph dev --port 2026
 
+dev-backend-local: dev-backend-file
+
 dev-local:
 	@echo "Starting file-backed local backend and frontend..."
-	@$(MAKE) dev-frontend & $(MAKE) dev-backend-local
+	@$(MAKE) dev-frontend & $(MAKE) dev-backend-file
 
-# Run frontend and database-backed backend concurrently
+# Run local frontend and database-backed local backend concurrently.
 dev:
-	@echo "Starting DB-backed backend and frontend..."
+	@echo "Starting local frontend/backend with Docker database services..."
 	@$(MAKE) db-up
-	@$(MAKE) dev-frontend & $(MAKE) dev-backend
+	@$(MAKE) dev-frontend & $(MAKE) dev-backend-server

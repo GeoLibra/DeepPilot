@@ -68,7 +68,68 @@ Default local URLs:
 
 - Frontend: `http://localhost:5173/app/`
 - Backend API: `http://127.0.0.1:2026`
+- Database UI: `http://127.0.0.1:8080`
 - LangGraph Studio: `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2026`
+
+`make dev` starts the database-backed local stack: Postgres, Redis, Adminer, the LangGraph API container, and the Vite frontend. This keeps local session storage close to the Docker/production-style runtime instead of using LangGraph's file-backed `.langgraph_api` development cache.
+
+If Docker Desktop reports that no space is left on device, restart Docker Desktop and clear only build cache first:
+
+```bash
+make docker-prune-build-cache
+```
+
+The project includes `.dockerignore` so local `node_modules`, `.venv`, and `.langgraph_api` caches are not sent into Docker builds. `make dev` does not force rebuilds every time; rebuild the API image explicitly after backend or Dockerfile changes:
+
+```bash
+make docker-build
+```
+
+To use the old file-backed hot-reload LangGraph dev server, run:
+
+```bash
+make dev-local
+```
+
+Adminer login for local database inspection:
+
+```text
+System: PostgreSQL
+Server: langgraph-postgres
+Username: postgres
+Password: postgres
+Database: postgres
+```
+
+From a desktop database client such as DBeaver, TablePlus, DataGrip, or pgAdmin, connect with:
+
+```text
+Host: 127.0.0.1
+Port: 5433
+Username: postgres
+Password: postgres
+Database: postgres
+```
+
+To migrate old file-backed local sessions into the DB-backed API, first start Docker Desktop and the app:
+
+```bash
+make dev
+```
+
+In another terminal, preview importable sessions:
+
+```bash
+cd backend
+uv run python scripts/migrate_local_sessions.py --dry-run
+```
+
+Import sessions that already have AI answers:
+
+```bash
+cd backend
+uv run python scripts/migrate_local_sessions.py
+```
 
 
 ## Hot Reload
@@ -76,7 +137,7 @@ Default local URLs:
 `make dev` supports hot reload for normal development:
 
 - Frontend changes under `frontend/src` are handled by Vite HMR and usually update in the browser without a restart.
-- Backend Python changes under `backend/src` are watched by `langgraph dev`; the backend reloads automatically.
+- Backend Python changes in the default DB-backed Docker API require restarting the backend container. Use `make dev-local` when you specifically want LangGraph's file-backed hot reload loop.
 - Dependency changes, `.env` changes, `backend/config.yaml` changes, or Makefile changes may require stopping `make dev` and running it again.
 - If the virtual environment was moved from another directory or command scripts look stale, run `make install` once to rebuild them.
 

@@ -7,6 +7,8 @@ services:
   langgraph-redis:
     image: docker.io/redis:6
     container_name: langgraph-redis
+    ports:
+      - "6379:6379"
     healthcheck:
       test: redis-cli ping
       interval: 5s
@@ -31,8 +33,12 @@ services:
       interval: 5s
   langgraph-api:
     image: pro-search-agent
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: langgraph-api
     ports:
+      - "2026:8000"
       - "8123:8000"
     depends_on:
       langgraph-redis:
@@ -45,3 +51,12 @@ services:
       LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
       REDIS_URI: redis://langgraph-redis:6379
       POSTGRES_URI: postgres://postgres:postgres@langgraph-postgres:5432/postgres?sslmode=disable
+      DATABASE_URI: postgres://postgres:postgres@langgraph-postgres:5432/postgres?sslmode=disable
+  adminer:
+    image: docker.io/adminer:4
+    container_name: deeppilot-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      langgraph-postgres:
+        condition: service_healthy

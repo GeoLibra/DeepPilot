@@ -1,0 +1,32 @@
+.git
+.gitignore
+.DS_Store
+
+# Local dependency caches
+backend/.venv
+frontend/node_modules
+node_modules
+
+# Build outputs
+backend/.pytest_cache
+backend/.mypy_cache
+backend/.ruff_cache
+frontend/dist
+frontend/.vite
+dist
+
+# LangGraph local file-backed development cache
+backend/.langgraph_api
+
+# Local environment and editor state
+backend/.env
+.env
+.idea
+.vscode
+
+# Python/JS transient files
+__pycache__
+*.py[cod]
+*.log
+*.tmp
+

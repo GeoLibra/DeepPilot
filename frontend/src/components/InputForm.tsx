@@ -24,6 +24,7 @@ const DEFAULT_MODEL_NAME = "deepseek-v4-pro";
 interface InputFormProps {
   onSubmit: (inputValue: string, effort: string, model: string) => void;
   onCancel: () => void;
+  onNewSession?: () => void;
   isLoading: boolean;
   hasHistory: boolean;
   modelOptions: ModelOption[];
@@ -32,6 +33,7 @@ interface InputFormProps {
 export const InputForm: React.FC<InputFormProps> = ({
   onSubmit,
   onCancel,
+  onNewSession,
   isLoading,
   hasHistory,
   modelOptions,
@@ -192,9 +194,10 @@ export const InputForm: React.FC<InputFormProps> = ({
         </div>
         {hasHistory && (
           <Button
+            type="button"
             className="cursor-pointer rounded-xl border border-slate-200 bg-white pl-3 text-slate-700 shadow-sm hover:bg-slate-50"
             variant="default"
-            onClick={() => window.location.reload()}
+            onClick={onNewSession}
           >
             <SquarePen size={16} />
             New Search

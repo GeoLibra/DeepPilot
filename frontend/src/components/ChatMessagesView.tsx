@@ -8,7 +8,6 @@ import { useState, useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import {
   AnswerVisualBlocks,
   getVisualBlocks,
@@ -152,31 +151,53 @@ function processMessageCitations(text: string) {
   const references: { id: number; label: string; url: string }[] = [];
   const urlToId = new Map<string, number>();
 
+  function cleanUrl(rawUrl: string) {
+    return rawUrl.trim().replace(/[.,;:!?，。；：！？、]+$/g, "");
+  }
+
   function getOrCreateRef(url: string, label: string): number {
-    let id = urlToId.get(url);
+    const cleanedUrl = cleanUrl(url);
+    let id = urlToId.get(cleanedUrl);
     if (id === undefined) {
       id = references.length + 1;
-      urlToId.set(url, id);
-      references.push({ id, label, url });
+      urlToId.set(cleanedUrl, id);
+      references.push({ id, label, url: cleanedUrl });
     }
     return id;
   }
 
+  const urlPattern = String.raw`https?:\/\/[^\s)\]，。；：！？、]+`;
+
+  // Normalize links where the model inserted whitespace/newlines after "](".
+  let normalizedText = text.replace(
+    new RegExp(String.raw`(!?)\[([^\]]+)\]\(\s*(${urlPattern})\s*\)`, "g"),
+    (match, isImage, label, url) => {
+      if (isImage) return match;
+      return `[${label}](${cleanUrl(url)})`;
+    }
+  );
+
+  // Recover common malformed markdown like "[16](\nhttps://example...".
+  normalizedText = normalizedText.replace(
+    new RegExp(String.raw`\[([^\]]+)\]\(\s*(${urlPattern})`, "g"),
+    (_match, label, url) => `[${label}](${cleanUrl(url)})`
+  );
+
   // Step 1: Convert standard markdown links [label](url) to numbered citations
-  let processedText = text.replace(/(!?)\[([^\]]+)\]\(([^)]+)\)/g, (match, isImage, label, url) => {
+  let processedText = normalizedText.replace(/(!?)\[([^\]]+)\]\(([^)]+)\)/g, (match, isImage, label, url) => {
     if (isImage) return match;
     const id = getOrCreateRef(url, label);
-    return `[${id}](${url})`;
+    return `[${id}](${cleanUrl(url)})`;
   });
 
   // Step 2: Convert bare URLs that are not already inside markdown links
   // This catches cases where the backend emits raw URLs like https://example.com
   processedText = processedText.replace(
-    /(?<!\]\()(?<!\()(https?:\/\/[^\s\)\]]+)/g,
+    new RegExp(String.raw`(?<!\]\()(?<!\()(${urlPattern})`, "g"),
     (bareUrl) => {
       // Skip if this URL is already part of a markdown link (extra safety)
       const id = getOrCreateRef(bareUrl, bareUrl);
-      return `[${id}](${bareUrl})`;
+      return `[${id}](${cleanUrl(bareUrl)})`;
     }
   );
 
@@ -186,13 +207,11 @@ function processMessageCitations(text: string) {
 // Props for HumanMessageBubble
 interface HumanMessageBubbleProps {
   message: Message;
-  mdComponents: typeof mdComponents;
 }
 
 // HumanMessageBubble Component
 const HumanMessageBubble: React.FC<HumanMessageBubbleProps> = ({
   message,
-  mdComponents,
 }) => {
   const messageText = getMessageText(message);
 
@@ -353,6 +372,7 @@ interface ChatMessagesViewProps {
   scrollAreaRef: React.RefObject<HTMLDivElement | null>;
   onSubmit: (inputValue: string, effort: string, model: string) => void;
   onCancel: () => void;
+  onNewSession: () => void;
   liveActivityEvents: ProcessedEvent[];
   historicalActivities: Record<string, ProcessedEvent[]>;
   modelOptions: ModelOption[];
@@ -365,6 +385,7 @@ export function ChatMessagesView({
   scrollAreaRef,
   onSubmit,
   onCancel,
+  onNewSession,
   liveActivityEvents,
   historicalActivities,
   modelOptions,
@@ -396,7 +417,6 @@ export function ChatMessagesView({
                   {message.type === "human" ? (
                     <HumanMessageBubble
                       message={message}
-                      mdComponents={mdComponents}
                     />
                   ) : (
                     <AiMessageBubble
@@ -458,6 +478,7 @@ export function ChatMessagesView({
         onSubmit={onSubmit}
         isLoading={isLoading}
         onCancel={onCancel}
+        onNewSession={onNewSession}
         hasHistory={messages.length > 0}
         modelOptions={modelOptions}
       />

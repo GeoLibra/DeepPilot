@@ -1,11 +1,20 @@
 import { useStream } from "@langchain/langgraph-sdk/react";
-import type { Message } from "@langchain/langgraph-sdk";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { Client, type Message } from "@langchain/langgraph-sdk";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { ProcessedEvent } from "@/components/ActivityTimeline";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatMessagesView } from "@/components/ChatMessagesView";
-import { Button } from "@/components/ui/button";
+import { SessionSidebar } from "@/components/SessionSidebar";
 import type { ModelOption } from "@/components/InputForm";
+import {
+  getSessionMessages,
+  listSessions,
+  renameSession,
+  updateSessionAfterRun,
+  type AgentState,
+  type LastRunDetails,
+  type SessionSummary,
+} from "@/lib/sessions";
 
 const FALLBACK_MODEL_OPTIONS: ModelOption[] = [
   {
@@ -56,6 +65,9 @@ type StreamUpdateEvent = {
   };
 };
 
+const ACTIVE_THREAD_STORAGE_KEY = "deeppilot.activeThreadId";
+const RECENT_SESSION_RESTORE_MS = 12 * 60 * 60 * 1000;
+
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   if (typeof error === "object" && error && "message" in error) {
@@ -69,6 +81,7 @@ export default function App() {
   const apiUrl = import.meta.env.DEV
     ? "http://localhost:2026"
     : "http://localhost:8123";
+  const client = useMemo(() => new Client<AgentState>({ apiUrl }), [apiUrl]);
   const [processedEventsTimeline, setProcessedEventsTimeline] = useState<
     ProcessedEvent[]
   >([]);
@@ -77,19 +90,45 @@ export default function App() {
   >({});
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const hasFinalizeEventOccurredRef = useRef(false);
+  const lastSubmittedRef = useRef<LastRunDetails | null>(null);
+  const suppressRecentRestoreRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [activeSessionMessages, setActiveSessionMessages] = useState<Message[]>(
+    []
+  );
+  const [isRefreshingSessions, setIsRefreshingSessions] = useState(false);
+  const [sessionsRefreshKey, setSessionsRefreshKey] = useState(0);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(() => {
+    return window.localStorage.getItem(ACTIVE_THREAD_STORAGE_KEY);
+  });
   const [modelOptions, setModelOptions] = useState<ModelOption[]>(
     FALLBACK_MODEL_OPTIONS
   );
-  const thread = useStream<{
-    messages: Message[];
-    initial_search_query_count: number;
-    max_research_loops: number;
-    reasoning_model: string;
-  }>({
-    apiUrl,
+
+  const refreshSessions = useCallback(() => {
+    setSessionsRefreshKey((value) => value + 1);
+  }, []);
+
+  const setPersistedActiveThreadId = useCallback((threadId: string | null) => {
+    setActiveThreadId(threadId);
+    if (threadId) {
+      window.localStorage.setItem(ACTIVE_THREAD_STORAGE_KEY, threadId);
+    } else {
+      window.localStorage.removeItem(ACTIVE_THREAD_STORAGE_KEY);
+    }
+  }, []);
+
+  const thread = useStream<AgentState>({
+    client,
     assistantId: "agent",
     messagesKey: "messages",
+    threadId: activeThreadId,
+    onThreadId: (threadId: string) => {
+      setPersistedActiveThreadId(threadId);
+      refreshSessions();
+    },
     onUpdateEvent: (event: StreamUpdateEvent) => {
       let processedEvent: ProcessedEvent | null = null;
       if (event.generate_query) {
@@ -140,7 +179,97 @@ export default function App() {
     onError: (error: unknown) => {
       setError(getErrorMessage(error));
     },
+    onFinish: (state) => {
+      const finishedThreadId = state.checkpoint.thread_id;
+      if (!finishedThreadId) return;
+
+      void updateSessionAfterRun(
+        client,
+        finishedThreadId,
+        Array.isArray(state.values.messages) ? state.values.messages : [],
+        lastSubmittedRef.current
+      )
+        .then(() => {
+          setActiveSessionMessages(
+            Array.isArray(state.values.messages) ? state.values.messages : []
+          );
+          refreshSessions();
+        })
+        .catch((metadataError) => {
+          setSessionError(getErrorMessage(metadataError));
+        });
+    },
   });
+
+  const displayMessages =
+    thread.isLoading || activeSessionMessages.length === 0
+      ? thread.messages
+      : activeSessionMessages;
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsRefreshingSessions(true);
+    setSessionError(null);
+
+    listSessions(client)
+      .then((nextSessions) => {
+        if (cancelled) return;
+        setSessions(nextSessions);
+        if (!activeThreadId && !suppressRecentRestoreRef.current) {
+          const recentSession = nextSessions[0];
+          const updatedAt = recentSession
+            ? new Date(recentSession.updatedAt).getTime()
+            : Number.NaN;
+          if (
+            recentSession &&
+            Number.isFinite(updatedAt) &&
+            Date.now() - updatedAt <= RECENT_SESSION_RESTORE_MS
+          ) {
+            setPersistedActiveThreadId(recentSession.id);
+          }
+        }
+      })
+      .catch((fetchError) => {
+        if (cancelled) return;
+        setSessionError(getErrorMessage(fetchError));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsRefreshingSessions(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeThreadId, client, sessionsRefreshKey, setPersistedActiveThreadId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!activeThreadId) {
+      setActiveSessionMessages([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    getSessionMessages(client, activeThreadId)
+      .then((messages) => {
+        if (!cancelled) {
+          setActiveSessionMessages(messages);
+        }
+      })
+      .catch((fetchError) => {
+        if (cancelled) return;
+        setActiveSessionMessages([]);
+        setSessionError(getErrorMessage(fetchError));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeThreadId, client, sessionsRefreshKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -176,15 +305,15 @@ export default function App() {
         scrollViewport.scrollTop = scrollViewport.scrollHeight;
       }
     }
-  }, [thread.messages]);
+  }, [displayMessages]);
 
   useEffect(() => {
     if (
       hasFinalizeEventOccurredRef.current &&
       !thread.isLoading &&
-      thread.messages.length > 0
+      displayMessages.length > 0
     ) {
-      const lastMessage = thread.messages[thread.messages.length - 1];
+      const lastMessage = displayMessages[displayMessages.length - 1];
       if (lastMessage && lastMessage.type === "ai" && lastMessage.id) {
         setHistoricalActivities((prev) => ({
           ...prev,
@@ -193,7 +322,7 @@ export default function App() {
       }
       hasFinalizeEventOccurredRef.current = false;
     }
-  }, [thread.messages, thread.isLoading, processedEventsTimeline]);
+  }, [displayMessages, thread.isLoading, processedEventsTimeline]);
 
   const handleSubmit = useCallback(
     (submittedInputValue: string, effort: string, model: string) => {
@@ -224,7 +353,7 @@ export default function App() {
       }
 
       const newMessages: Message[] = [
-        ...(thread.messages || []),
+        ...(displayMessages || []),
         {
           type: "human",
           content: submittedInputValue,
@@ -237,19 +366,108 @@ export default function App() {
         max_research_loops: max_research_loops,
         reasoning_model: model,
       });
+      lastSubmittedRef.current = {
+        input: submittedInputValue,
+        effort,
+        model,
+      };
     },
-    [thread]
+    [displayMessages, thread]
   );
 
   const handleCancel = useCallback(() => {
     thread.stop();
-    window.location.reload();
   }, [thread]);
 
+  const handleNewSession = useCallback(() => {
+    if (thread.isLoading) {
+      thread.stop();
+    }
+    setError(null);
+    setProcessedEventsTimeline([]);
+    setHistoricalActivities({});
+    setActiveSessionMessages([]);
+    hasFinalizeEventOccurredRef.current = false;
+    lastSubmittedRef.current = null;
+    suppressRecentRestoreRef.current = true;
+    setPersistedActiveThreadId(null);
+  }, [setPersistedActiveThreadId, thread]);
+
+  const handleSelectSession = useCallback(
+    (sessionId: string) => {
+      if (sessionId === activeThreadId) return;
+      if (thread.isLoading) {
+        thread.stop();
+      }
+      setError(null);
+      setProcessedEventsTimeline([]);
+      setHistoricalActivities({});
+      setActiveSessionMessages([]);
+      hasFinalizeEventOccurredRef.current = false;
+      lastSubmittedRef.current = null;
+      suppressRecentRestoreRef.current = true;
+      setPersistedActiveThreadId(sessionId);
+    },
+    [activeThreadId, setPersistedActiveThreadId, thread]
+  );
+
+  const handleRenameSession = useCallback(
+    async (sessionId: string, title: string) => {
+      setSessionError(null);
+      await renameSession(client, sessionId, title);
+      refreshSessions();
+    },
+    [client, refreshSessions]
+  );
+
+  const handleDeleteSession = useCallback(
+    async (sessionId: string) => {
+      setSessionError(null);
+      if (sessionId === activeThreadId && thread.isLoading) {
+        thread.stop();
+      }
+
+      await client.threads.delete(sessionId);
+
+      if (sessionId === activeThreadId) {
+        const nextSession = sessions.find((session) => session.id !== sessionId);
+        setPersistedActiveThreadId(nextSession?.id ?? null);
+        setProcessedEventsTimeline([]);
+        setHistoricalActivities({});
+        setActiveSessionMessages([]);
+        lastSubmittedRef.current = null;
+        suppressRecentRestoreRef.current = true;
+      }
+
+      refreshSessions();
+    },
+    [
+      activeThreadId,
+      client,
+      refreshSessions,
+      sessions,
+      setPersistedActiveThreadId,
+      thread,
+    ]
+  );
+
   return (
-    <div className="flex min-h-[100dvh] bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.14),transparent_32%),linear-gradient(180deg,#f8fafc_0%,#eef6f4_48%,#f8fafc_100%)] font-sans text-slate-900 antialiased">
-      <main className="mx-auto h-[100dvh] w-full max-w-6xl">
-          {thread.messages.length === 0 ? (
+    <div className="flex h-[100dvh] flex-col bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.14),transparent_32%),linear-gradient(180deg,#f8fafc_0%,#eef6f4_48%,#f8fafc_100%)] font-sans text-slate-900 antialiased md:flex-row">
+      <SessionSidebar
+        sessions={sessions}
+        activeSessionId={activeThreadId}
+        isLoading={thread.isLoading}
+        isRefreshing={isRefreshingSessions}
+        error={sessionError}
+        onNewSession={handleNewSession}
+        onSelectSession={handleSelectSession}
+        onRenameSession={handleRenameSession}
+        onDeleteSession={handleDeleteSession}
+        onRefresh={refreshSessions}
+      />
+      <main className="min-h-0 flex-1">
+        <div className="mx-auto h-full w-full max-w-6xl">
+          {displayMessages.length === 0 ? (
             <WelcomeScreen
               handleSubmit={handleSubmit}
               isLoading={thread.isLoading}
@@ -259,17 +477,19 @@ export default function App() {
             />
           ) : (
             <ChatMessagesView
-              messages={thread.messages}
+              messages={displayMessages}
               isLoading={thread.isLoading}
               scrollAreaRef={scrollAreaRef}
               onSubmit={handleSubmit}
               onCancel={handleCancel}
+              onNewSession={handleNewSession}
               liveActivityEvents={processedEventsTimeline}
               historicalActivities={historicalActivities}
               modelOptions={modelOptions}
               error={error}
             />
           )}
+        </div>
       </main>
     </div>
   );

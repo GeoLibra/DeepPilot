@@ -6,6 +6,7 @@ import { InputForm, ModelOption } from "@/components/InputForm";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -151,17 +152,33 @@ function processMessageCitations(text: string) {
   const references: { id: number; label: string; url: string }[] = [];
   const urlToId = new Map<string, number>();
 
-  const processedText = text.replace(/(!?)\[([^\]]+)\]\(([^)]+)\)/g, (match, isImage, label, url) => {
-    if (isImage) return match;
-
+  function getOrCreateRef(url: string, label: string): number {
     let id = urlToId.get(url);
     if (id === undefined) {
       id = references.length + 1;
       urlToId.set(url, id);
       references.push({ id, label, url });
     }
+    return id;
+  }
+
+  // Step 1: Convert standard markdown links [label](url) to numbered citations
+  let processedText = text.replace(/(!?)\[([^\]]+)\]\(([^)]+)\)/g, (match, isImage, label, url) => {
+    if (isImage) return match;
+    const id = getOrCreateRef(url, label);
     return `[${id}](${url})`;
   });
+
+  // Step 2: Convert bare URLs that are not already inside markdown links
+  // This catches cases where the backend emits raw URLs like https://example.com
+  processedText = processedText.replace(
+    /(?<!\]\()(?<!\()(https?:\/\/[^\s\)\]]+)/g,
+    (bareUrl) => {
+      // Skip if this URL is already part of a markdown link (extra safety)
+      const id = getOrCreateRef(bareUrl, bareUrl);
+      return `[${id}](${bareUrl})`;
+    }
+  );
 
   return { processedText, references };
 }
@@ -181,7 +198,7 @@ const HumanMessageBubble: React.FC<HumanMessageBubbleProps> = ({
 
   return (
     <div className="max-w-[100%] rounded-2xl rounded-br-md border border-teal-700 bg-teal-700 px-4 py-3 text-white shadow-sm sm:max-w-[90%] [&_*]:text-white [&_p:last-child]:mb-0">
-      <ReactMarkdown components={humanMdComponents}>{messageText}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={humanMdComponents}>{messageText}</ReactMarkdown>
     </div>
   );
 };
@@ -291,7 +308,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       )}
       {showVisualBlocks && <AnswerVisualBlocks blocks={visualBlocks} />}
       <div className="max-w-none [overflow-wrap:anywhere]">
-        <ReactMarkdown components={mdComponents}>{processedText}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{processedText}</ReactMarkdown>
       </div>
       
       {references.length > 0 && (

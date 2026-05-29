@@ -45,13 +45,16 @@ services:
         condition: service_healthy
       langgraph-postgres:
         condition: service_healthy
+    env_file:
+      - backend/.env
     environment:
-      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
-      WEB_RESEARCH_API_KEY: ${WEB_RESEARCH_API_KEY:-}
-      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
       REDIS_URI: redis://langgraph-redis:6379
       POSTGRES_URI: postgres://postgres:postgres@langgraph-postgres:5432/postgres?sslmode=disable
       DATABASE_URI: postgres://postgres:postgres@langgraph-postgres:5432/postgres?sslmode=disable
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./backend/src:/deps/backend/src
+      - ./backend/config.yaml:/deps/backend/config.yaml:ro
   adminer:
     image: docker.io/adminer:4
     container_name: deeppilot-adminer

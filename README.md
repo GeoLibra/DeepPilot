@@ -21,6 +21,8 @@ Copy the example file and add your keys:
 cp backend/.env.example backend/.env
 ```
 
+Keep each entry in `KEY=value` form without spaces around `=`.
+
 Required:
 
 ```bash
@@ -72,7 +74,15 @@ Default local URLs:
 - Database UI: `http://127.0.0.1:8080`
 - LangGraph Studio: `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2026`
 
-`make dev` starts Postgres, Redis, and Adminer in Docker, then runs the LangGraph backend through the local uv environment and the frontend through Vite. This keeps local session storage database-backed without requiring developers to install database software or build the backend Docker image for normal development.
+`make dev` starts Postgres, Redis, Adminer, and the LangGraph API runtime in Docker, then runs the frontend through local Vite. The backend container bind-mounts local backend source and `config.yaml`, so normal backend code edits do not require rebuilding the image. LangGraph sessions are stored in Docker Postgres.
+
+`make dev` is equivalent to:
+
+```bash
+make dev-db
+```
+
+In this mode, the backend container connects to Docker Postgres and Redis through Docker service names. LangGraph creates its Postgres tables after the backend starts and handles the first thread/run operations.
 
 If Docker Desktop reports that no space is left on device, restart Docker Desktop and clear only build cache first:
 
@@ -80,22 +90,28 @@ If Docker Desktop reports that no space is left on device, restart Docker Deskto
 make docker-prune-build-cache
 ```
 
-The project includes `.dockerignore` so local `node_modules`, `.venv`, and `.langgraph_api` caches are not sent into Docker builds. `make dev` does not build the backend image. Build it explicitly only when you want to test the containerized API:
+The project includes `.dockerignore` so local `node_modules`, `.venv`, and `.langgraph_api` caches are not sent into Docker builds. `make dev` uses the backend image for the LangGraph runtime, but mounts local backend source into it. Rebuild the backend image after dependency, Dockerfile, frontend build, or package metadata changes:
 
 ```bash
 make docker-build
 ```
 
-To run the containerized backend instead of the local uv backend, use:
+To run only the containerized backend, use:
 
 ```bash
 make dev-backend-container
 ```
 
-To use the old file-backed LangGraph dev server, run:
+`make dev-container` is kept as an alias for the same database-backed development stack:
 
 ```bash
-make dev-local
+make dev-container
+```
+
+To use the file-backed local LangGraph dev server instead of Postgres, run:
+
+```bash
+make dev-backend-file
 ```
 
 Adminer login for local database inspection:
@@ -141,12 +157,14 @@ uv run python scripts/migrate_local_sessions.py
 
 ## Hot Reload
 
-`make dev` supports hot reload for normal development:
+`make dev` supports local frontend and backend code iteration:
 
 - Frontend changes under `frontend/src` are handled by Vite HMR and usually update in the browser without a restart.
-- Backend Python changes are handled by the local LangGraph development server.
-- Dependency changes, `.env` changes, `backend/config.yaml` changes, or Makefile changes may require stopping `make dev` and running it again.
+- Backend Python changes under `backend/src` and `backend/config.yaml` are bind-mounted into the backend container. Restart `langgraph-api` after backend changes so Python imports reload: `make dev-backend-restart`.
+- Dependency changes, `.env` changes, Dockerfile changes, frontend build changes, or package metadata changes require rebuilding or recreating the backend container.
 - If the virtual environment was moved from another directory or command scripts look stale, run `make install` once to rebuild them.
+
+`make dev-backend-file` keeps a local-file-storage fallback for backend-only debugging without Postgres.
 
 ## CLI Example
 

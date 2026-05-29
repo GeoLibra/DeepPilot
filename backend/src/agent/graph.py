@@ -120,13 +120,16 @@ def web_research(state: WebSearchState, config: RunnableConfig) -> OverallState:
             "temperature": 0,
         },
     )
-    # resolve the urls to short urls for saving tokens and time
-    resolved_urls = resolve_urls(
-        response.candidates[0].grounding_metadata.grounding_chunks, state["id"]
-    )
+    candidate = response.candidates[0] if getattr(response, "candidates", None) else None
+    grounding_metadata = getattr(candidate, "grounding_metadata", None)
+    grounding_chunks = getattr(grounding_metadata, "grounding_chunks", None)
+
+    # Resolve the URLs to short URLs for saving tokens and time. Gemini may
+    # return text without grounding chunks, so this path must be citation-free.
+    resolved_urls = resolve_urls(grounding_chunks, state["id"])
     # Gets the citations and adds them to the generated text
     citations = get_citations(response, resolved_urls)
-    modified_text = insert_citation_markers(response.text, citations)
+    modified_text = insert_citation_markers(response.text or "", citations)
     sources_gathered = [item for citation in citations for item in citation["segments"]]
 
     return {
@@ -249,15 +252,15 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
 
     # Replace the short urls with the original urls and add all used urls to the sources_gathered
     unique_sources = []
+    final_answer = result.content or ""
     for source in state["sources_gathered"]:
-        if source["short_url"] in result.content:
-            result.content = result.content.replace(
-                source["short_url"], source["value"]
-            )
+        short_url = source.get("short_url")
+        if short_url and short_url in final_answer:
+            final_answer = final_answer.replace(short_url, source["value"])
             unique_sources.append(source)
 
     return {
-        "final_answer": result.content,
+        "final_answer": final_answer,
         "sources_gathered": unique_sources,
     }
 

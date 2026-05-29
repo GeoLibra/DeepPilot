@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from langchain_core.messages import AnyMessage, AIMessage, HumanMessage
 
 
@@ -19,13 +19,18 @@ def get_research_topic(messages: List[AnyMessage]) -> str:
     return research_topic
 
 
-def resolve_urls(urls_to_resolve: List[Any], id: int) -> Dict[str, str]:
+def resolve_urls(urls_to_resolve: Optional[List[Any]], id: int) -> Dict[str, str]:
     """
     Create a map of long source URLs to short placeholders with a unique id for each URL.
     Ensures each original URL gets a consistent shortened form while maintaining uniqueness.
     """
     prefix = f"https://vertexaisearch.cloud.google.com/id/"
-    urls = [site.web.uri for site in urls_to_resolve]
+    urls = []
+    for site in urls_to_resolve or []:
+        web = getattr(site, "web", None)
+        uri = getattr(web, "uri", None)
+        if uri:
+            urls.append(uri)
 
     # Create a dictionary that maps each unique URL to its first occurrence index
     resolved_map = {}
@@ -119,7 +124,11 @@ def get_citations(response, resolved_urls_map):
     ):
         return citations
 
-    for support in candidate.grounding_metadata.grounding_supports:
+    grounding_metadata = candidate.grounding_metadata
+    grounding_supports = getattr(grounding_metadata, "grounding_supports", None) or []
+    grounding_chunks = getattr(grounding_metadata, "grounding_chunks", None) or []
+
+    for support in grounding_supports:
         citation = {}
 
         # Ensure segment information is present
@@ -148,13 +157,18 @@ def get_citations(response, resolved_urls_map):
         ):
             for ind in support.grounding_chunk_indices:
                 try:
-                    chunk = candidate.grounding_metadata.grounding_chunks[ind]
-                    resolved_url = resolved_urls_map.get(chunk.web.uri, None)
+                    chunk = grounding_chunks[ind]
+                    web = getattr(chunk, "web", None)
+                    uri = getattr(web, "uri", None)
+                    title = getattr(web, "title", None) or uri
+                    resolved_url = resolved_urls_map.get(uri, None)
+                    if not uri or not resolved_url:
+                        continue
                     citation["segments"].append(
                         {
-                            "label": chunk.web.title.split(".")[:-1][0],
+                            "label": title.split(".")[0],
                             "short_url": resolved_url,
-                            "value": chunk.web.uri,
+                            "value": uri,
                         }
                     )
                 except (IndexError, AttributeError, NameError):

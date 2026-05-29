@@ -16,14 +16,14 @@
 
 后端在 `backend/src/agent/graph.py` 中定义 LangGraph 图，`OverallState.messages` 已通过 `add_messages` 支持多轮上下文。LangGraph SDK 已提供 Thread 能力，包括 `threadId`、`onThreadId`、`client.threads.search/update/delete/getHistory`。
 
-历史上本地 `langgraph dev` 默认把数据持久化到 `backend/.langgraph_api/*.pckl`。为减少本地和线上差异，当前默认本地开发链路改为本地 uv 后端 + Docker Compose 数据库服务，使用 Postgres 和 Redis：
+历史上本地 `langgraph dev` 默认把数据持久化到 `backend/.langgraph_api/*.pckl`，因此不能作为数据库版默认入口。当前默认 `make dev` 使用数据库版开发链路：前端由本地 Vite 运行，后端由 Docker 中的 LangGraph API runtime 运行并连接 Docker Compose 中的 Postgres 和 Redis，同时把本地 `backend/src` 和 `backend/config.yaml` bind mount 到容器里，避免普通后端代码修改后 rebuild 镜像。需要不连接 Postgres 的文件存储 fallback 时，显式使用 `make dev-backend-file`：
 
 - Postgres volume：`langgraph-data`
 - Postgres service：`langgraph-postgres`
 - Redis service：`langgraph-redis`
 - Adminer service：`adminer`
 
-保留文件存储模式作为显式 fallback：`make dev-local`。
+保留文件存储模式作为显式 fallback：`make dev-backend-file`。
 
 ## 存储设计
 
@@ -154,7 +154,7 @@ alter table session_chunks add column embedding vector(1536);
 
 本地开发不要求安装数据库软件，依赖 Docker 启动 Postgres/Redis 容器。
 
-默认本地开发使用数据库版链路：
+数据库版本地开发使用显式链路：
 
 ```makefile
 db-up:
@@ -166,11 +166,17 @@ db-down:
 db-reset:
 	docker compose down -v
 
-dev: db-up
-	@$(MAKE) dev-frontend & $(MAKE) dev-backend
+langgraph-api:
+	volumes:
+	  - ./backend/src:/deps/backend/src
+	  - ./backend/config.yaml:/deps/backend/config.yaml:ro
+
+dev-db:
+	@$(MAKE) db-up
+	@$(MAKE) dev-frontend & $(MAKE) dev-backend-container
 ```
 
-其中 `dev-backend` 默认通过本地 uv 虚拟环境启动 LangGraph API，并连接上面的 Docker Postgres/Redis。容器化后端保留为显式目标 `make dev-backend-container`，用于验证 Docker 镜像或生产式入口。
+其中 `dev-backend-container` 使用 Docker 中的 LangGraph API Postgres runtime 写入上面的 Docker Postgres/Redis；本地源码通过 bind mount 进入容器。普通 Python 代码或 `config.yaml` 修改后重启 `langgraph-api` 即可生效，不需要 rebuild。`make dev-backend-file` 使用 `langgraph dev` 的本地文件存储，不会创建 Postgres 表。
 
 本地默认端口：
 
@@ -204,7 +210,7 @@ Database: postgres
 保留旧文件存储开发模式：
 
 ```bash
-make dev-local
+make dev-backend-file
 ```
 
 该模式仍会写入：
@@ -305,7 +311,7 @@ uv run python scripts/migrate_local_sessions.py --api-url http://127.0.0.1:2026
 - metadata 更新冲突：第一阶段每次更新前先拉最新 thread metadata 再浅合并；第二阶段列表和检索读业务索引，metadata 只作为兼容补充。
 - 切换会话时仍在生成：先调用 `thread.stop()`，再切换。
 - 删除当前会话：删除后选中最近的其他会话，没有则回到欢迎页。
-- 本地开发和线上存储不一致：默认 `make dev` 使用本地 uv LangGraph API + Docker Postgres/Redis；显式 `make dev-local` 才使用 `.langgraph_api` 文件存储。
+- 本地开发和线上存储不一致：默认 `make dev` 使用本地前端、Docker LangGraph API runtime、本地 backend source bind mount 和 Docker Postgres/Redis；需要无数据库 fallback 时使用 `make dev-backend-file`，它会使用 LangGraph dev 本地存储。
 
 ## 第三阶段储备
 
@@ -337,7 +343,7 @@ alter table sessions add column share_token uuid;
 - 可以搜索、重命名、删除会话。
 - 删除当前会话后 UI 能稳定回到其他会话或欢迎页。
 - `localStorage` 为空时能恢复最近活跃会话。
-- 默认 `make dev` 使用本地 uv LangGraph API，并连接 Docker Postgres/Redis。
+- 默认 `make dev` 使用本地前端、Docker LangGraph API runtime、本地 backend source bind mount，并连接 Docker Postgres/Redis。
 - Adminer 可打开并查看 Postgres 内容。
 - `npm run build` 通过。
 - `npm run lint` 无新增关键错误。

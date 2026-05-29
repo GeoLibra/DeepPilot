@@ -73,8 +73,8 @@ export function SessionSidebar({
     setDraftTitle("");
   };
 
-  const submitRename = async (event: FormEvent) => {
-    event.preventDefault();
+  const submitRename = async (event?: { preventDefault: () => void }) => {
+    if (event) event.preventDefault();
     if (!editingId || !draftTitle.trim()) return;
     setPendingActionId(editingId);
     try {
@@ -160,66 +160,45 @@ export function SessionSidebar({
                 session.status === "busy" || (isActive && isLoading);
               const isPending = pendingActionId === session.id;
 
-              if (editingId === session.id) {
-                return (
-                  <form
-                    key={session.id}
-                    onSubmit={submitRename}
-                    className="rounded-xl border border-teal-200 bg-teal-50/70 p-2"
-                  >
-                    <Input
-                      value={draftTitle}
-                      onChange={(event) => setDraftTitle(event.target.value)}
-                      className="h-8 rounded-lg border-teal-200 bg-white text-sm"
-                      autoFocus
-                    />
-                    <div className="mt-2 flex justify-end gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 rounded-lg"
-                        onClick={cancelEditing}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="submit"
-                        size="icon"
-                        className="h-7 w-7 rounded-lg bg-teal-700 text-white hover:bg-teal-800"
-                        disabled={!draftTitle.trim() || isPending}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </form>
-                );
-              }
+              const isEditing = editingId === session.id;
 
               return (
                 <div
                   key={session.id}
                   className={cn(
-                    "group rounded-xl border p-2 transition-colors",
-                    isActive
+                    "group relative overflow-hidden rounded-xl border p-2 transition-colors",
+                    isActive || isEditing
                       ? "border-teal-200 bg-teal-50"
                       : "border-transparent bg-white/60 hover:border-slate-200 hover:bg-white"
                   )}
                 >
-                  <div className="flex items-start gap-2">
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
-                      onClick={() => onSelectSession(session.id)}
+                  <div className="flex w-full items-start gap-2 overflow-hidden">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="min-w-0 flex-1 overflow-hidden text-left outline-none cursor-pointer"
+                      onClick={() => !isEditing && onSelectSession(session.id)}
                     >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="truncate text-sm font-medium text-slate-900">
-                          {session.title}
-                        </span>
-                        {isBusy && (
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-600" />
-                        )}
-                      </div>
+                      {isEditing ? (
+                        <form onSubmit={submitRename} className="flex min-w-0 items-center gap-2">
+                          <Input
+                            value={draftTitle}
+                            onChange={(event) => setDraftTitle(event.target.value)}
+                            className="h-7 w-full rounded-md border-teal-300 bg-white px-2 py-1 text-sm focus-visible:ring-1 focus-visible:ring-teal-500 shadow-none"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </form>
+                      ) : (
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm font-medium text-slate-900">
+                            {session.title}
+                          </span>
+                          {isBusy && (
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-600" />
+                          )}
+                        </div>
+                      )}
                       <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
                         {session.preview}
                       </p>
@@ -229,30 +208,64 @@ export function SessionSidebar({
                           <span className="truncate">{session.model}</span>
                         )}
                       </div>
-                    </button>
-                    <div className="flex shrink-0 items-center gap-0.5 opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 rounded-lg text-slate-500 hover:bg-slate-100"
-                        onClick={() => startEditing(session)}
-                        disabled={isPending}
-                        title="Rename session"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600"
-                        onClick={() => deleteSession(session.id)}
-                        disabled={isPending || isBusy}
-                        title="Delete session"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                    </div>
+                    <div className={cn(
+                      "flex shrink-0 items-center gap-0.5 transition-opacity",
+                      isEditing ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                    )}>
+                      {isEditing ? (
+                        <>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                            onClick={cancelEditing}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            className="h-7 w-7 rounded-lg bg-teal-600 text-white hover:bg-teal-700"
+                            disabled={!draftTitle.trim() || isPending}
+                            onClick={submitRename}
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startEditing(session);
+                            }}
+                            disabled={isPending}
+                            title="Rename session"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSession(session.id);
+                            }}
+                            disabled={isPending || isBusy}
+                            title="Delete session"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

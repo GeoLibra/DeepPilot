@@ -84,9 +84,9 @@ export function processMessageCitations(text: string) {
     return id;
   }
 
-  // Step 1: Convert standard markdown links [label](url) to numbered citations
+  // Step 1: Convert standard markdown links [label](url) or [label](url] to numbered citations
   let processedText = text.replace(
-    /(!?)\[([^\]]+)\]\(([^)]+)\)/g,
+    /(!?)\[([^\]]+)\]\(([^)\]]+)[)\]]/g,
     (match, isImage, label, url) => {
       if (isImage) return match;
       const id = getOrCreateRef(url, label);

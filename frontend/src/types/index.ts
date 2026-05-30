@@ -16,11 +16,27 @@ export type VisualBlock = {
   priority?: number;
 };
 
+export type ResearchPlan = {
+  title: string;
+  objective?: string;
+  research_steps?: string[];
+  analysis_steps?: string[];
+  report_outline?: string[];
+  estimated_minutes?: number;
+  markdown?: string;
+};
+
+export type ResearchPlanReviewInterrupt = {
+  type: "research_plan_review";
+  plan: ResearchPlan;
+};
+
 export type AgentState = {
   messages: Message[];
   initial_search_query_count: number;
   max_research_loops: number;
   reasoning_model: string;
+  research_plan?: ResearchPlan;
 };
 
 export type SessionSummary = {
@@ -48,6 +64,9 @@ export type SourceEvent = {
 };
 
 export type StreamUpdateEvent = {
+  plan_research?: {
+    research_plan?: ResearchPlan;
+  };
   generate_query?: {
     search_query?: string[];
   };

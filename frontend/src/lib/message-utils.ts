@@ -1,4 +1,5 @@
 import type { Message } from "@langchain/langgraph-sdk";
+import type { ResearchPlanReviewInterrupt } from "@/types";
 
 export function stringifyContentPart(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -123,6 +124,35 @@ export function getVisualBlocks(value: unknown): import("@/types").VisualBlock[]
     .sort((left, right) => (left.priority ?? 0) - (right.priority ?? 0));
 }
 
+export function getResearchPlanReviewInterrupt(
+  value: unknown
+): ResearchPlanReviewInterrupt | null {
+  if (!value || typeof value !== "object") return null;
+
+  const payload = value as Record<string, unknown>;
+  if (payload.type !== "research_plan_review") return null;
+  if (!payload.plan || typeof payload.plan !== "object") return null;
+
+  const plan = payload.plan as Record<string, unknown>;
+  if (typeof plan.title !== "string") return null;
+
+  return {
+    type: "research_plan_review",
+    plan: {
+      title: plan.title,
+      objective: typeof plan.objective === "string" ? plan.objective : undefined,
+      research_steps: asStringList(plan.research_steps),
+      analysis_steps: asStringList(plan.analysis_steps),
+      report_outline: asStringList(plan.report_outline),
+      estimated_minutes:
+        typeof plan.estimated_minutes === "number"
+          ? plan.estimated_minutes
+          : undefined,
+      markdown: typeof plan.markdown === "string" ? plan.markdown : undefined,
+    },
+  };
+}
+
 function isVisualBlock(value: unknown): value is import("@/types").VisualBlock {
   if (!value || typeof value !== "object") return false;
 
@@ -133,4 +163,9 @@ function isVisualBlock(value: unknown): value is import("@/types").VisualBlock {
     typeof block.syntax === "string" &&
     block.syntax.trim().length > 0
   );
+}
+
+function asStringList(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter((item): item is string => typeof item === "string");
 }

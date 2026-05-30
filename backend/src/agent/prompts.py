@@ -34,6 +34,31 @@ Topic: What revenue grew more last year apple stock or the number of people buyi
 Context: {research_topic}"""
 
 
+research_plan_instructions = """Create a concise research plan for the user's topic before any web research is performed.
+
+Instructions:
+- The current date is {current_date}.
+- Prefer the same language as the user's request.
+- Do not answer the user's question yet.
+- Make the plan specific enough for the user to review and modify.
+- Include targeted website/search research work, analysis work, and the final report structure.
+- Keep each step short and concrete.
+- Estimate only the preparation/research time in minutes.
+
+Output Format:
+- Format your response as a JSON object with these exact keys:
+   - "title": Short plan title.
+   - "objective": What the research will answer.
+   - "research_steps": A list of concrete web research steps.
+   - "analysis_steps": A list of concrete analysis steps after sources are gathered.
+   - "report_outline": A list of final report sections or deliverables.
+   - "estimated_minutes": An integer estimate in minutes.
+
+User Topic:
+{research_topic}
+"""
+
+
 web_searcher_instructions = """Conduct targeted web searches to gather the most recent, credible information on "{research_topic}" and synthesize it into a verifiable text artifact.
 
 Instructions:

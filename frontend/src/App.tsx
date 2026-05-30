@@ -7,7 +7,10 @@ import { ChatMessagesView } from "@/components/ChatMessagesView";
 import { SessionSidebar } from "@/components/SessionSidebar";
 import type { ModelOption, StreamUpdateEvent } from "@/types";
 import { FALLBACK_MODEL_OPTIONS, ACTIVE_THREAD_STORAGE_KEY, RECENT_SESSION_RESTORE_MS } from "@/lib/constants";
-import { getErrorMessage } from "@/lib/message-utils";
+import {
+  getErrorMessage,
+  getResearchPlanReviewInterrupt,
+} from "@/lib/message-utils";
 import {
   branchSessionFromMessage,
   copyMessageShareUrl,
@@ -163,6 +166,9 @@ export default function App() {
     thread.isLoading || activeSessionMessages.length === 0
       ? thread.messages
       : activeSessionMessages;
+  const researchPlanInterrupt = getResearchPlanReviewInterrupt(
+    thread.interrupt?.value
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -357,6 +363,20 @@ export default function App() {
     thread.stop();
   }, [thread]);
 
+  const handleApproveResearchPlan = useCallback(
+    (planMarkdown: string) => {
+      thread.submit(null, {
+        command: {
+          resume: {
+            action: "approve",
+            plan_markdown: planMarkdown,
+          },
+        },
+      });
+    },
+    [thread]
+  );
+
   const handleNewSession = useCallback(() => {
     if (thread.isLoading) {
       thread.stop();
@@ -517,7 +537,7 @@ export default function App() {
       />
       <main className="relative min-h-0 flex-1 bg-transparent">
         <div className="mx-auto h-full w-full max-w-[1240px]">
-          {displayMessages.length === 0 ? (
+          {displayMessages.length === 0 && !researchPlanInterrupt ? (
             <WelcomeScreen
               handleSubmit={handleSubmit}
               isLoading={thread.isLoading}
@@ -538,9 +558,11 @@ export default function App() {
               modelOptions={modelOptions}
               error={error}
               highlightedMessageId={targetMessageId}
+              researchPlanInterrupt={researchPlanInterrupt}
               onBranchMessage={handleBranchMessage}
               onShareMessage={handleShareMessage}
               onExportMessage={handleExportMessage}
+              onApproveResearchPlan={handleApproveResearchPlan}
             />
           )}
         </div>

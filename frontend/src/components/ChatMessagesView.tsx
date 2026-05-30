@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InputForm } from "@/components/InputForm";
-import type { ModelOption } from "@/types";
+import { ResearchPlanReview } from "@/components/ResearchPlanReview";
+import type { ModelOption, ResearchPlanReviewInterrupt } from "@/types";
 import { useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -231,9 +232,11 @@ interface ChatMessagesViewProps {
   modelOptions: ModelOption[];
   error?: string | null;
   highlightedMessageId?: string | null;
+  researchPlanInterrupt?: ResearchPlanReviewInterrupt | null;
   onBranchMessage: (messageId: string) => Promise<void>;
   onShareMessage: (messageId: string) => Promise<void>;
   onExportMessage: (messageId: string) => Promise<void>;
+  onApproveResearchPlan: (planMarkdown: string) => void;
 }
 
 export function ChatMessagesView({
@@ -248,9 +251,11 @@ export function ChatMessagesView({
   modelOptions,
   error,
   highlightedMessageId,
+  researchPlanInterrupt,
   onBranchMessage,
   onShareMessage,
   onExportMessage,
+  onApproveResearchPlan,
 }: ChatMessagesViewProps) {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [feedbackMessageAction, setFeedbackMessageAction] =
@@ -369,6 +374,12 @@ export function ChatMessagesView({
                 </div>
               </div>
             )}
+          {researchPlanInterrupt && !isLoading && (
+            <ResearchPlanReview
+              interrupt={researchPlanInterrupt}
+              onApprove={onApproveResearchPlan}
+            />
+          )}
         </div>
       </ScrollArea>
       {error && (
@@ -378,14 +389,16 @@ export function ChatMessagesView({
           </div>
         </div>
       )}
-      <InputForm
-        onSubmit={onSubmit}
-        isLoading={isLoading}
-        onCancel={onCancel}
-        onNewSession={onNewSession}
-        hasHistory={messages.length > 0}
-        modelOptions={modelOptions}
-      />
+      {!researchPlanInterrupt && (
+        <InputForm
+          onSubmit={onSubmit}
+          isLoading={isLoading}
+          onCancel={onCancel}
+          onNewSession={onNewSession}
+          hasHistory={messages.length > 0}
+          modelOptions={modelOptions}
+        />
+      )}
     </div>
   );
 }

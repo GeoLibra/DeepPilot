@@ -11,6 +11,25 @@ class SearchQueryList(BaseModel):
     )
 
 
+class ResearchPlan(BaseModel):
+    title: str = Field(description="A concise title for the research plan.")
+    objective: str = Field(
+        description="The research objective in the user's language."
+    )
+    research_steps: List[str] = Field(
+        description="The concrete web research steps to perform before analysis."
+    )
+    analysis_steps: List[str] = Field(
+        description="The analysis and synthesis steps to perform after research."
+    )
+    report_outline: List[str] = Field(
+        description="The proposed final report sections or deliverables."
+    )
+    estimated_minutes: int = Field(
+        description="A rough estimate of the time needed to prepare the research."
+    )
+
+
 class Reflection(BaseModel):
     is_sufficient: bool = Field(
         description="Whether the provided summaries are sufficient to answer the user's question."

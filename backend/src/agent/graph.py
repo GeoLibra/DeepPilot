@@ -1,30 +1,35 @@
 import os
 
-from agent.tools_and_schemas import SearchQueryList, Reflection, VisualBlocks
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage
-from langgraph.types import Send
-from langgraph.graph import StateGraph
-from langgraph.graph import START, END
-from langchain_core.runnables import RunnableConfig
 from google.genai import Client
+from langchain_core.messages import AIMessage
+from langchain_core.runnables import RunnableConfig
+from langgraph.graph import END, START, StateGraph
+from langgraph.types import Send, interrupt
 
+from agent.configuration import Configuration
+from agent.model_registry import invoke_structured_model, invoke_text_model
+from agent.prompts import (
+    answer_instructions,
+    get_current_date,
+    query_writer_instructions,
+    reflection_instructions,
+    research_plan_instructions,
+    visualization_instructions,
+    web_searcher_instructions,
+)
 from agent.state import (
     OverallState,
     QueryGenerationState,
     ReflectionState,
     WebSearchState,
 )
-from agent.configuration import Configuration
-from agent.prompts import (
-    get_current_date,
-    query_writer_instructions,
-    web_searcher_instructions,
-    reflection_instructions,
-    answer_instructions,
-    visualization_instructions,
+from agent.tools_and_schemas import (
+    Reflection,
+    ResearchPlan,
+    SearchQueryList,
+    VisualBlocks,
 )
-from agent.model_registry import invoke_structured_model, invoke_text_model
 from agent.utils import (
     get_citations,
     get_research_topic,
@@ -42,7 +47,94 @@ if web_research_api_key is None:
 genai_client = Client(api_key=web_research_api_key)
 
 
+def format_research_plan_markdown(plan: dict) -> str:
+    """Render a structured research plan into editable markdown."""
+    title = str(plan.get("title") or "Research plan").strip()
+    objective = str(plan.get("objective") or "").strip()
+    research_steps = plan.get("research_steps") or []
+    analysis_steps = plan.get("analysis_steps") or []
+    report_outline = plan.get("report_outline") or []
+    estimated_minutes = plan.get("estimated_minutes")
+
+    lines = [f"# {title}"]
+    if objective:
+        lines.extend(["", f"## Objective", objective])
+    if research_steps:
+        lines.extend(["", "## Research websites"])
+        lines.extend(f"{idx}. {step}" for idx, step in enumerate(research_steps, 1))
+    if analysis_steps:
+        lines.extend(["", "## Analyze results"])
+        lines.extend(f"{idx}. {step}" for idx, step in enumerate(analysis_steps, 1))
+    if report_outline:
+        lines.extend(["", "## Generate report"])
+        lines.extend(f"{idx}. {section}" for idx, section in enumerate(report_outline, 1))
+    if estimated_minutes:
+        lines.extend(["", f"Estimated preparation time: {estimated_minutes} minutes"])
+
+    return "\n".join(lines).strip()
+
+
+def normalize_research_plan_resume(resume_value: object, fallback_plan: dict) -> dict:
+    """Coerce the user's approval or edits into the plan stored in graph state."""
+    plan = dict(fallback_plan)
+    action = "approve"
+    plan_markdown = str(plan.get("markdown") or "").strip()
+
+    if isinstance(resume_value, str) and resume_value.strip():
+        plan_markdown = resume_value.strip()
+        action = "modify"
+    elif isinstance(resume_value, dict):
+        action = str(resume_value.get("action") or action)
+        incoming_plan = resume_value.get("plan")
+        if isinstance(incoming_plan, dict):
+            plan.update(incoming_plan)
+        incoming_markdown = resume_value.get("plan_markdown")
+        if isinstance(incoming_markdown, str) and incoming_markdown.strip():
+            plan_markdown = incoming_markdown.strip()
+
+    if not plan_markdown:
+        plan_markdown = format_research_plan_markdown(plan)
+
+    plan["markdown"] = plan_markdown
+    plan["review_action"] = action
+    return plan
+
+
+def get_research_context(state: OverallState) -> str:
+    """Return the original topic plus the user-approved research plan."""
+    topic = get_research_topic(state["messages"])
+    research_plan = state.get("research_plan") or {}
+    plan_markdown = research_plan.get("markdown") if isinstance(research_plan, dict) else None
+    if not plan_markdown:
+        return topic
+    return f"{topic}\n\nUser-approved research plan:\n{plan_markdown}"
+
+
 # Nodes
+def plan_research(state: OverallState, config: RunnableConfig) -> OverallState:
+    """Create a research plan and pause for user review before web research."""
+    configurable = Configuration.from_runnable_config(config)
+    reasoning_model = state.get("reasoning_model") or configurable.query_generator_model
+
+    formatted_prompt = research_plan_instructions.format(
+        current_date=get_current_date(),
+        research_topic=get_research_topic(state["messages"]),
+    )
+    result = invoke_structured_model(
+        reasoning_model,
+        formatted_prompt,
+        ResearchPlan,
+        temperature=0,
+        api_key=web_research_api_key,
+    )
+    plan = result.model_dump()
+    plan["markdown"] = format_research_plan_markdown(plan)
+
+    resume_value = interrupt({"type": "research_plan_review", "plan": plan})
+    approved_plan = normalize_research_plan_resume(resume_value, plan)
+    return {"research_plan": approved_plan}
+
+
 def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerationState:
     """LangGraph node that generates search queries based on the User's question.
 
@@ -66,7 +158,7 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
     current_date = get_current_date()
     formatted_prompt = query_writer_instructions.format(
         current_date=current_date,
-        research_topic=get_research_topic(state["messages"]),
+        research_topic=get_research_context(state),
         number_queries=state["initial_search_query_count"],
     )
     # Generate the search queries
@@ -162,7 +254,7 @@ def reflection(state: OverallState, config: RunnableConfig) -> ReflectionState:
     current_date = get_current_date()
     formatted_prompt = reflection_instructions.format(
         current_date=current_date,
-        research_topic=get_research_topic(state["messages"]),
+        research_topic=get_research_context(state),
         summaries="\n\n---\n\n".join(state["web_research_result"]),
     )
     result = invoke_structured_model(
@@ -239,7 +331,7 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
     current_date = get_current_date()
     formatted_prompt = answer_instructions.format(
         current_date=current_date,
-        research_topic=get_research_topic(state["messages"]),
+        research_topic=get_research_context(state),
         summaries="\n---\n\n".join(state["web_research_result"]),
     )
 
@@ -274,7 +366,7 @@ def visualize_answer(state: OverallState, config: RunnableConfig):
         return {"messages": [AIMessage(content=final_answer)], "visual_blocks": []}
 
     formatted_prompt = visualization_instructions.format(
-        research_topic=get_research_topic(state["messages"]),
+        research_topic=get_research_context(state),
         answer=final_answer,
     )
 
@@ -311,15 +403,17 @@ def visualize_answer(state: OverallState, config: RunnableConfig):
 builder = StateGraph(OverallState, config_schema=Configuration)
 
 # Define the nodes we will cycle between
+builder.add_node("plan_research", plan_research)
 builder.add_node("generate_query", generate_query)
 builder.add_node("web_research", web_research)
 builder.add_node("reflection", reflection)
 builder.add_node("finalize_answer", finalize_answer)
 builder.add_node("visualize_answer", visualize_answer)
 
-# Set the entrypoint as `generate_query`
+# Set the entrypoint as `plan_research`
 # This means that this node is the first one called
-builder.add_edge(START, "generate_query")
+builder.add_edge(START, "plan_research")
+builder.add_edge("plan_research", "generate_query")
 # Add conditional edge to continue with search queries in a parallel branch
 builder.add_conditional_edges(
     "generate_query", continue_to_web_research, ["web_research"]

@@ -9,8 +9,15 @@ import type { ModelOption, StreamUpdateEvent } from "@/types";
 import { FALLBACK_MODEL_OPTIONS, ACTIVE_THREAD_STORAGE_KEY, RECENT_SESSION_RESTORE_MS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/message-utils";
 import {
+  branchSessionFromMessage,
+  copyMessageShareUrl,
+  downloadMessageMarkdown,
+  getMessageElementId,
+  getMessageIdFromUrl,
+  getSessionIdFromUrl,
   listSessions,
   renameSession,
+  setSessionIdInUrl,
   updateSessionAfterRun,
   getSessionMessages,
 } from "@/lib/sessions";
@@ -33,6 +40,7 @@ export default function App() {
   >({});
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const hasFinalizeEventOccurredRef = useRef(false);
+  const hasScrolledToTargetMessageRef = useRef(false);
   const lastSubmittedRef = useRef<LastRunDetails | null>(null);
   const suppressRecentRestoreRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +52,11 @@ export default function App() {
   const [isRefreshingSessions, setIsRefreshingSessions] = useState(false);
   const [sessionsRefreshKey, setSessionsRefreshKey] = useState(0);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(() => {
-    return window.localStorage.getItem(ACTIVE_THREAD_STORAGE_KEY);
+    return getSessionIdFromUrl() || window.localStorage.getItem(ACTIVE_THREAD_STORAGE_KEY);
   });
+  const [targetMessageId, setTargetMessageId] = useState<string | null>(() =>
+    getMessageIdFromUrl()
+  );
   const [modelOptions, setModelOptions] = useState<ModelOption[]>(
     FALLBACK_MODEL_OPTIONS
   );
@@ -56,6 +67,9 @@ export default function App() {
 
   const setPersistedActiveThreadId = useCallback((threadId: string | null) => {
     setActiveThreadId(threadId);
+    setTargetMessageId(null);
+    hasScrolledToTargetMessageRef.current = false;
+    setSessionIdInUrl(threadId);
     if (threadId) {
       window.localStorage.setItem(ACTIVE_THREAD_STORAGE_KEY, threadId);
     } else {
@@ -240,6 +254,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (
+      targetMessageId &&
+      displayMessages.some((message) => message.id === targetMessageId)
+    ) {
+      return;
+    }
+
     if (scrollAreaRef.current) {
       const scrollViewport = scrollAreaRef.current.querySelector(
         "[data-radix-scroll-area-viewport]"
@@ -248,7 +269,20 @@ export default function App() {
         scrollViewport.scrollTop = scrollViewport.scrollHeight;
       }
     }
-  }, [displayMessages]);
+  }, [displayMessages, targetMessageId]);
+
+  useEffect(() => {
+    if (!targetMessageId || hasScrolledToTargetMessageRef.current) return;
+    if (!displayMessages.some((message) => message.id === targetMessageId)) return;
+
+    const messageElement = document.getElementById(
+      getMessageElementId(targetMessageId)
+    );
+    if (!messageElement) return;
+
+    messageElement.scrollIntoView({ block: "center", behavior: "smooth" });
+    hasScrolledToTargetMessageRef.current = true;
+  }, [displayMessages, targetMessageId]);
 
   useEffect(() => {
     if (
@@ -363,6 +397,76 @@ export default function App() {
     [client, refreshSessions]
   );
 
+  const handleBranchMessage = useCallback(
+    async (messageId: string) => {
+      if (!activeThreadId) {
+        throw new Error("No active session.");
+      }
+
+      setSessionError(null);
+      if (thread.isLoading) {
+        thread.stop();
+      }
+
+      const sourceSession = sessions.find(
+        (session) => session.id === activeThreadId
+      );
+      const branch = await branchSessionFromMessage(
+        client,
+        activeThreadId,
+        messageId,
+        displayMessages,
+        sourceSession
+      );
+      setProcessedEventsTimeline([]);
+      setHistoricalActivities({});
+      setActiveSessionMessages(branch.messages);
+      hasFinalizeEventOccurredRef.current = false;
+      lastSubmittedRef.current = null;
+      suppressRecentRestoreRef.current = true;
+      setPersistedActiveThreadId(branch.threadId);
+      refreshSessions();
+    },
+    [
+      activeThreadId,
+      client,
+      displayMessages,
+      refreshSessions,
+      sessions,
+      setPersistedActiveThreadId,
+      thread,
+    ]
+  );
+
+  const handleShareMessage = useCallback(
+    async (messageId: string) => {
+      if (!activeThreadId) {
+        throw new Error("No active session.");
+      }
+
+      setSessionError(null);
+      await copyMessageShareUrl(activeThreadId, messageId);
+    },
+    [activeThreadId]
+  );
+
+  const handleExportMessage = useCallback(
+    async (messageId: string) => {
+      if (!activeThreadId) {
+        throw new Error("No active session.");
+      }
+
+      setSessionError(null);
+      const session = sessions.find((item) => item.id === activeThreadId);
+      if (!session) {
+        throw new Error("Session not found.");
+      }
+
+      downloadMessageMarkdown(session, displayMessages, messageId);
+    },
+    [activeThreadId, displayMessages, sessions]
+  );
+
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
       setSessionError(null);
@@ -430,6 +534,10 @@ export default function App() {
               historicalActivities={historicalActivities}
               modelOptions={modelOptions}
               error={error}
+              highlightedMessageId={targetMessageId}
+              onBranchMessage={handleBranchMessage}
+              onShareMessage={handleShareMessage}
+              onExportMessage={handleExportMessage}
             />
           )}
         </div>

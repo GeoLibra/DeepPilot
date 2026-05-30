@@ -33,6 +33,8 @@ export type SessionSummary = {
   messageCount: number;
   model?: string;
   effort?: string;
+  branchedFrom?: string;
+  branchedAt?: string;
 };
 
 export type LastRunDetails = {

@@ -1,7 +1,15 @@
 import type React from "react";
 import type { Message } from "@langchain/langgraph-sdk";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Copy, CopyCheck, Loader2, Search } from "lucide-react";
+import {
+  Copy,
+  CopyCheck,
+  Download,
+  GitBranchPlus,
+  Loader2,
+  Search,
+  Share2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InputForm } from "@/components/InputForm";
 import type { ModelOption } from "@/types";
@@ -22,6 +30,8 @@ import {
   isInternalQueryMessage,
   getVisualBlocks,
 } from "@/lib/message-utils";
+import { getMessageElementId } from "@/lib/sessions";
+import { cn } from "@/lib/utils";
 
 // Props for HumanMessageBubble
 interface HumanMessageBubbleProps {
@@ -50,8 +60,17 @@ interface AiMessageBubbleProps {
   isOverallLoading: boolean;
   mdComponents: typeof mdComponents;
   handleCopy: (text: string, messageId: string) => void;
+  handleShare: (messageId: string) => void;
+  handleExport: (messageId: string) => void;
+  handleBranch: (messageId: string) => void;
   copiedMessageId: string | null;
+  feedbackMessageAction: MessageActionFeedback | null;
 }
+
+type MessageActionFeedback = {
+  messageId: string;
+  action: "share" | "export";
+};
 
 // AiMessageBubble Component
 const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
@@ -62,7 +81,11 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   isOverallLoading,
   mdComponents,
   handleCopy,
+  handleShare,
+  handleExport,
+  handleBranch,
   copiedMessageId,
+  feedbackMessageAction,
 }) => {
   // Determine which activity events to show and if it's for a live loading message
   const activityForThisBubble =
@@ -81,6 +104,17 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
     (message as { additional_kwargs?: { visual_blocks?: unknown } })
       .additional_kwargs?.visual_blocks
   );
+  const messageId = message.id;
+  const hasText = rawMessageText.length > 0;
+  const activeFeedbackAction =
+    feedbackMessageAction && feedbackMessageAction.messageId === messageId
+      ? feedbackMessageAction.action
+      : null;
+  const isShareDone = activeFeedbackAction === "share";
+  const isExportDone = activeFeedbackAction === "export";
+  const isBranchDisabled = !messageId || (isLastMessage && isOverallLoading);
+  const actionButtonClass =
+    "h-8 w-8 cursor-pointer rounded-full border border-slate-200 bg-white p-0 text-slate-500 shadow-none hover:bg-slate-50 hover:text-slate-800";
 
   return (
     <div className="relative flex min-w-0 flex-col break-words rounded-2xl border border-slate-200 bg-white/90 px-5 py-4 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
@@ -119,23 +153,68 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         </div>
       )}
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className={`mt-2 h-8 w-8 cursor-pointer self-end rounded-full border border-slate-200 bg-white p-0 text-slate-500 shadow-none hover:bg-slate-50 hover:text-slate-800 ${
-          rawMessageText.length > 0 ? "visible" : "hidden"
-        }`}
-        onClick={() => handleCopy(rawMessageText, message.id!)}
-        aria-label={copiedMessageId === message.id ? "Copied" : "Copy answer"}
-        title={copiedMessageId === message.id ? "Copied" : "Copy answer"}
-      >
-        {copiedMessageId === message.id ? (
-          <CopyCheck className="h-4 w-4 text-teal-700" />
-        ) : (
-          <Copy className="h-4 w-4" />
-        )}
-      </Button>
+      <div className={cn("mt-3 flex justify-end gap-1", !hasText && "hidden")}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={actionButtonClass}
+          disabled={!messageId}
+          onClick={() => messageId && handleCopy(rawMessageText, messageId)}
+          aria-label={copiedMessageId === messageId ? "Copied" : "Copy answer"}
+          title={copiedMessageId === messageId ? "Copied" : "Copy answer"}
+        >
+          {copiedMessageId === messageId ? (
+            <CopyCheck className="h-4 w-4 text-teal-700" />
+          ) : (
+            <Copy className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={actionButtonClass}
+          disabled={!messageId}
+          onClick={() => messageId && handleShare(messageId)}
+          aria-label={isShareDone ? "Link copied" : "Share answer"}
+          title={isShareDone ? "Link copied" : "Share answer"}
+        >
+          {isShareDone ? (
+            <CopyCheck className="h-4 w-4 text-teal-700" />
+          ) : (
+            <Share2 className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={actionButtonClass}
+          disabled={!messageId}
+          onClick={() => messageId && handleExport(messageId)}
+          aria-label={isExportDone ? "Downloaded" : "Download answer"}
+          title={isExportDone ? "Downloaded" : "Download answer"}
+        >
+          {isExportDone ? (
+            <CopyCheck className="h-4 w-4 text-teal-700" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={actionButtonClass}
+          disabled={isBranchDisabled}
+          onClick={() => messageId && handleBranch(messageId)}
+          aria-label="Branch from here"
+          title="Branch from here"
+        >
+          <GitBranchPlus className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 };
@@ -151,6 +230,10 @@ interface ChatMessagesViewProps {
   historicalActivities: Record<string, ProcessedEvent[]>;
   modelOptions: ModelOption[];
   error?: string | null;
+  highlightedMessageId?: string | null;
+  onBranchMessage: (messageId: string) => Promise<void>;
+  onShareMessage: (messageId: string) => Promise<void>;
+  onExportMessage: (messageId: string) => Promise<void>;
 }
 
 export function ChatMessagesView({
@@ -164,11 +247,28 @@ export function ChatMessagesView({
   historicalActivities,
   modelOptions,
   error,
+  highlightedMessageId,
+  onBranchMessage,
+  onShareMessage,
+  onExportMessage,
 }: ChatMessagesViewProps) {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [feedbackMessageAction, setFeedbackMessageAction] =
+    useState<MessageActionFeedback | null>(null);
   const visibleMessages = messages.filter(
     (message) => !isInternalQueryMessage(message)
   );
+
+  const showMessageFeedback = (messageId: string, action: "share" | "export") => {
+    setFeedbackMessageAction({ messageId, action });
+    window.setTimeout(() => {
+      setFeedbackMessageAction((current) =>
+        current?.messageId === messageId && current.action === action
+          ? null
+          : current
+      );
+    }, 1800);
+  };
 
   const handleCopy = async (text: string, messageId: string) => {
     try {
@@ -179,14 +279,40 @@ export function ChatMessagesView({
       console.error("Failed to copy text: ", err);
     }
   };
+
+  const handleShare = async (messageId: string) => {
+    await onShareMessage(messageId);
+    showMessageFeedback(messageId, "share");
+  };
+
+  const handleExport = async (messageId: string) => {
+    await onExportMessage(messageId);
+    showMessageFeedback(messageId, "export");
+  };
+
+  const handleBranch = async (messageId: string) => {
+    await onBranchMessage(messageId);
+  };
+
   return (
     <div className="flex h-full flex-col">
       <ScrollArea className="flex-1 overflow-y-auto" ref={scrollAreaRef}>
         <div className="mx-auto max-w-5xl space-y-4 px-4 pb-6 pt-10 md:px-6 md:pt-14">
           {visibleMessages.map((message, index) => {
             const isLast = index === visibleMessages.length - 1;
+            const messageElementId = message.id
+              ? getMessageElementId(message.id)
+              : undefined;
             return (
-              <div key={message.id || `msg-${index}`} className="space-y-3">
+              <div
+                key={message.id || `msg-${index}`}
+                id={messageElementId}
+                className={cn(
+                  "space-y-3 scroll-mt-6 rounded-3xl transition-shadow",
+                  highlightedMessageId === message.id &&
+                    "ring-2 ring-teal-300 ring-offset-4 ring-offset-slate-50"
+                )}
+              >
                 <div className={`flex items-start gap-3 ${message.type === "human" ? "justify-end" : ""}`}>
                   {message.type === "human" ? (
                     <HumanMessageBubble
@@ -201,7 +327,11 @@ export function ChatMessagesView({
                       isOverallLoading={isLoading} // Pass global loading state
                       mdComponents={mdComponents}
                       handleCopy={handleCopy}
+                      handleShare={handleShare}
+                      handleExport={handleExport}
+                      handleBranch={handleBranch}
                       copiedMessageId={copiedMessageId}
+                      feedbackMessageAction={feedbackMessageAction}
                     />
                   )}
                 </div>

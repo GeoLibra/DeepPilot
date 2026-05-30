@@ -95,6 +95,9 @@ export function SessionSidebar({
     }
   };
 
+  const actionButtonClass =
+    "h-7 w-7 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600";
+
   return (
     <aside className="flex max-h-[42dvh] w-full shrink-0 flex-col border-b border-slate-200/80 bg-white/80 p-3 backdrop-blur md:h-[100dvh] md:max-h-none md:w-80 md:border-b-0 md:border-r">
       <div className="flex items-center justify-between gap-2">
@@ -240,7 +243,7 @@ export function SessionSidebar({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                            className={actionButtonClass}
                             onClick={(e) => {
                               e.stopPropagation();
                               startEditing(session);

@@ -2,11 +2,22 @@ import type { Client, Message, Metadata, Thread } from "@langchain/langgraph-sdk
 import type { AgentState, SessionSummary, LastRunDetails } from "@/types";
 import {
   APP_METADATA_KEY,
+  DEFAULT_MODEL_NAME,
   DEFAULT_SESSION_TITLE,
   SESSION_TITLE_LENGTH,
   SESSION_PREVIEW_LENGTH,
 } from "./constants";
-import { getPreviewMessageText, normalizeWhitespace } from "./message-utils";
+import {
+  getCleanMessageText,
+  getPreviewMessageText,
+  isInternalQueryMessage,
+  normalizeWhitespace,
+} from "./message-utils";
+
+const SESSION_URL_PARAM = "thread";
+const LEGACY_SESSION_URL_PARAM = "session";
+const MESSAGE_URL_PARAM = "message";
+const BRANCH_TITLE_SUFFIX = " (branch)";
 
 function getMetadataString(metadata: Metadata | undefined, key: string) {
   const value = metadata?.[key];
@@ -16,7 +27,8 @@ function getMetadataString(metadata: Metadata | undefined, key: string) {
 function truncateText(value: string, maxLength: number) {
   const normalized = normalizeWhitespace(value);
   if (normalized.length <= maxLength) return normalized;
-  return `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+  if (maxLength <= 3) return normalized.slice(0, maxLength);
+  return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
 export function deriveSessionTitle(input: string) {
@@ -39,6 +51,128 @@ function getFirstHumanMessage(messages: Message[]) {
 
 function getLastMessage(messages: Message[]) {
   return messages.length > 0 ? messages[messages.length - 1] : undefined;
+}
+
+function getLastVisibleMessage(messages: Message[]) {
+  return [...messages].reverse().find((message) => !isInternalQueryMessage(message));
+}
+
+function getMessageIndex(messages: Message[], messageId: string) {
+  return messages.findIndex((message) => message.id === messageId);
+}
+
+function getMessagesThroughMessage(messages: Message[], messageId: string) {
+  const index = getMessageIndex(messages, messageId);
+  if (index < 0) return messages;
+  return messages.slice(0, index + 1);
+}
+
+function getTurnMessages(messages: Message[], messageId: string) {
+  const visibleMessages = messages.filter(
+    (message) => !isInternalQueryMessage(message)
+  );
+  const targetIndex = getMessageIndex(visibleMessages, messageId);
+  if (targetIndex < 0) return [];
+
+  const targetMessage = visibleMessages[targetIndex];
+  const turnMessages: Message[] = [];
+  for (let index = targetIndex - 1; index >= 0; index -= 1) {
+    const message = visibleMessages[index];
+    if (message.type === "human") {
+      turnMessages.push(message);
+      break;
+    }
+    if (message.type === "ai") break;
+  }
+  turnMessages.push(targetMessage);
+  return turnMessages;
+}
+
+function getBranchTitle(title: string) {
+  const baseTitle = title || DEFAULT_SESSION_TITLE;
+  if (baseTitle.endsWith(BRANCH_TITLE_SUFFIX)) {
+    return truncateText(baseTitle, SESSION_TITLE_LENGTH);
+  }
+
+  const maxBaseLength = SESSION_TITLE_LENGTH - BRANCH_TITLE_SUFFIX.length;
+  return `${truncateText(baseTitle, maxBaseLength)}${BRANCH_TITLE_SUFFIX}`;
+}
+
+function getMessageBranchTitle(title: string) {
+  return getBranchTitle(title || DEFAULT_SESSION_TITLE);
+}
+
+function getSessionUrl() {
+  return new URL(window.location.href);
+}
+
+function formatExportDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function sanitizeFilename(value: string) {
+  return (
+    normalizeWhitespace(value)
+      .replace(/[\\/:*?"<>|]+/g, "-")
+      .replace(/\.+$/g, "")
+      .slice(0, 80)
+      .trim() || "deeppilot-session"
+  );
+}
+
+function getMessageRole(message: Message) {
+  switch (message.type) {
+    case "human":
+      return "User";
+    case "ai":
+      return "DeepPilot";
+    case "system":
+      return "System";
+    case "tool":
+      return "Tool";
+    default:
+      return message.type || "Message";
+  }
+}
+
+function downloadTextFile(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(objectUrl);
+}
+
+async function writeClipboardText(text: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Fall through to the legacy copy path for non-secure local origins.
+    }
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    const copied = document.execCommand("copy");
+    if (!copied) throw new Error("Clipboard copy failed.");
+  } finally {
+    document.body.removeChild(textarea);
+  }
 }
 
 export function threadToSessionSummary(thread: Thread<AgentState>): SessionSummary {
@@ -71,6 +205,8 @@ export function threadToSessionSummary(thread: Thread<AgentState>): SessionSumma
     messageCount: messages.length,
     model: getMetadataString(thread.metadata, "last_model"),
     effort: getMetadataString(thread.metadata, "last_effort"),
+    branchedFrom: getMetadataString(thread.metadata, "branched_from"),
+    branchedAt: getMetadataString(thread.metadata, "branched_at"),
   };
 }
 
@@ -116,6 +252,55 @@ export async function renameSession(
     title: deriveSessionTitle(title),
     title_source: "user",
   });
+}
+
+export async function branchSessionFromMessage(
+  client: Client<AgentState>,
+  threadId: string,
+  messageId: string,
+  messages: Message[],
+  sourceSession?: SessionSummary
+) {
+  const branchedMessages = getMessagesThroughMessage(messages, messageId);
+  const firstHumanText = getFirstHumanMessage(branchedMessages)
+    ? getPreviewMessageText(getFirstHumanMessage(branchedMessages)!)
+    : "";
+  const lastVisibleText = getLastVisibleMessage(branchedMessages)
+    ? getPreviewMessageText(getLastVisibleMessage(branchedMessages)!)
+    : "";
+  const title = sourceSession?.title || firstHumanText || DEFAULT_SESSION_TITLE;
+
+  const newThread = await client.threads.create({
+    metadata: {
+      app: APP_METADATA_KEY,
+      title: getMessageBranchTitle(title),
+      title_source: "auto",
+      branched_from: threadId,
+      branched_from_message: messageId,
+      branched_at: new Date().toISOString(),
+      last_message_preview: truncateText(
+        lastVisibleText || firstHumanText,
+        SESSION_PREVIEW_LENGTH
+      ),
+      last_model: sourceSession?.model,
+      last_effort: sourceSession?.effort,
+    },
+  });
+
+  await client.threads.updateState(newThread.thread_id, {
+    values: {
+      messages: branchedMessages,
+      initial_search_query_count: 3,
+      max_research_loops: 3,
+      reasoning_model: sourceSession?.model || DEFAULT_MODEL_NAME,
+    },
+    asNode: "visualize_answer",
+  });
+
+  return {
+    threadId: newThread.thread_id,
+    messages: branchedMessages,
+  };
 }
 
 export async function updateSessionAfterRun(
@@ -172,4 +357,95 @@ export function filterSessions(sessions: SessionSummary[], query: string) {
       .toLowerCase();
     return haystack.includes(normalizedQuery);
   });
+}
+
+export function getSessionIdFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(SESSION_URL_PARAM) || params.get(LEGACY_SESSION_URL_PARAM);
+}
+
+export function setSessionIdInUrl(threadId: string | null) {
+  const url = getSessionUrl();
+  if (threadId) {
+    url.searchParams.set(SESSION_URL_PARAM, threadId);
+    url.searchParams.delete(LEGACY_SESSION_URL_PARAM);
+  } else {
+    url.searchParams.delete(SESSION_URL_PARAM);
+    url.searchParams.delete(LEGACY_SESSION_URL_PARAM);
+  }
+  url.searchParams.delete(MESSAGE_URL_PARAM);
+
+  window.history.replaceState(
+    null,
+    "",
+    `${url.pathname}${url.search}${url.hash}`
+  );
+}
+
+export function getMessageIdFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(MESSAGE_URL_PARAM);
+}
+
+export function getMessageElementId(messageId: string) {
+  return `message-${encodeURIComponent(messageId)}`;
+}
+
+export function getMessageShareUrl(threadId: string, messageId: string) {
+  const url = getSessionUrl();
+  url.searchParams.set(SESSION_URL_PARAM, threadId);
+  url.searchParams.set(MESSAGE_URL_PARAM, messageId);
+  url.searchParams.delete(LEGACY_SESSION_URL_PARAM);
+  return url.toString();
+}
+
+export async function copyMessageShareUrl(threadId: string, messageId: string) {
+  const shareUrl = getMessageShareUrl(threadId, messageId);
+  await writeClipboardText(shareUrl);
+  return shareUrl;
+}
+
+export function buildMessageExportMarkdown(
+  session: SessionSummary,
+  messages: Message[],
+  messageId: string
+) {
+  const turnMessages = getTurnMessages(messages, messageId);
+  const metadataLines = [
+    `- Session ID: \`${session.id}\``,
+    `- Message ID: \`${messageId}\``,
+    `- Exported: ${formatExportDate(new Date().toISOString())}`,
+    session.model ? `- Model: ${session.model}` : null,
+    session.effort ? `- Effort: ${session.effort}` : null,
+  ].filter(Boolean);
+
+  const messageSections = turnMessages.map((message) => {
+    const messageText = getCleanMessageText(message).trim() || "_No text content_";
+    return [`## ${getMessageRole(message)}`, "", messageText].join("\n");
+  });
+
+  return [
+    `# ${session.title}`,
+    "",
+    metadataLines.join("\n"),
+    "",
+    "---",
+    "",
+    ...messageSections,
+    "",
+  ].join("\n");
+}
+
+export function downloadMessageMarkdown(
+  session: SessionSummary,
+  messages: Message[],
+  messageId: string
+) {
+  const date = new Date().toISOString().slice(0, 10);
+  const filename = `${sanitizeFilename(session.title)}-turn-${date}.md`;
+  downloadTextFile(
+    filename,
+    buildMessageExportMarkdown(session, messages, messageId),
+    "text/markdown;charset=utf-8"
+  );
 }

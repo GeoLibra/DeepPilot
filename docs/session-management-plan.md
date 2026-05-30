@@ -260,6 +260,13 @@ uv run python scripts/migrate_local_sessions.py --api-url http://127.0.0.1:2026
 - 刷新列表
 - 展示更新时间、状态、最近消息摘要
 
+改造 `ChatMessagesView`：
+
+- 每条 AI 回答底部展示复制、分享、导出、从此处分支按钮
+- 分享链接携带 `thread` 和 `message` 参数
+- 打开分享链接后恢复对应会话，并滚动定位到目标回答
+- “从此处分支”创建一个只包含截至该回答上下文的新 Thread，并切换过去继续追问
+
 改造 `App.tsx`：
 
 - 创建共享 LangGraph `Client`
@@ -282,6 +289,9 @@ uv run python scripts/migrate_local_sessions.py --api-url http://127.0.0.1:2026
 前端直接使用 LangGraph SDK：
 
 - `client.threads.search({ limit, sortBy: "updated_at", sortOrder: "desc" })`
+- `client.threads.get(threadId)`
+- `client.threads.create({ metadata })`
+- `client.threads.updateState(threadId, { values, asNode })`
 - `client.threads.update(threadId, { metadata })`
 - `client.threads.delete(threadId)`
 - `useStream({ threadId, onThreadId })`
@@ -313,9 +323,11 @@ uv run python scripts/migrate_local_sessions.py --api-url http://127.0.0.1:2026
 - 删除当前会话：删除后选中最近的其他会话，没有则回到欢迎页。
 - 本地开发和线上存储不一致：默认 `make dev` 使用本地前端、Docker LangGraph API runtime、本地 backend source bind mount 和 Docker Postgres/Redis；需要无数据库 fallback 时使用 `make dev-backend-file`，它会使用 LangGraph dev 本地存储。
 
-## 第三阶段储备
+## 第三阶段实现与储备
 
 ### 会话分支与 Time Travel
+
+当前实现提供回答级分支：前端从目标 AI 回答截取截至该回答的消息上下文，调用 `client.threads.create()` 创建新 Thread，再用 `client.threads.updateState()` 写入截断后的 `messages`。新 Thread metadata 中写入 `branched_from`、`branched_from_message`、`branched_at` 和自动标题，然后切换到新会话继续研究。
 
 LangGraph checkpoint 天然支持历史状态。后续可以在消息气泡上增加 “Fork from here”：
 
@@ -325,7 +337,12 @@ LangGraph checkpoint 天然支持历史状态。后续可以在消息气泡上�
 
 ### 分享与导出
 
-新增只读分享模型：
+当前实现先提供轻量分享和导出：
+
+- 分享：复制带 `?thread=<thread_id>&message=<message_id>` 的回答链接；App 启动时优先读取参数、恢复会话并滚动到目标回答。
+- 导出：按单次问答结果下载 Markdown 文件，包含前一个用户问题和目标 AI 回答。
+
+后续新增只读分享模型：
 
 ```sql
 alter table sessions add column is_public boolean not null default false;
@@ -341,6 +358,9 @@ alter table sessions add column share_token uuid;
 - 新建会话不刷新页面，不污染旧会话。
 - 切换旧会话后可以继续追问。
 - 可以搜索、重命名、删除会话。
+- 可以从某条 AI 回答创建分支会话，并在新分支里继续追问。
+- 可以复制某条 AI 回答链接，并通过链接恢复会话、滚动到对应回答。
+- 可以将某次问答结果导出为 Markdown。
 - 删除当前会话后 UI 能稳定回到其他会话或欢迎页。
 - `localStorage` 为空时能恢复最近活跃会话。
 - 默认 `make dev` 使用本地前端、Docker LangGraph API runtime、本地 backend source bind mount，并连接 Docker Postgres/Redis。

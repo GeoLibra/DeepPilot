@@ -8,6 +8,7 @@ import type { ModelOption } from "@/types";
 import { useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkCjkFriendly from "remark-cjk-friendly";
 import { AnswerVisualBlocks } from "@/components/AnswerVisualBlocks";
 import {
   ActivityTimeline,
@@ -35,7 +36,7 @@ const HumanMessageBubble: React.FC<HumanMessageBubbleProps> = ({
 
   return (
     <div className="max-w-[100%] rounded-2xl rounded-br-md border border-teal-700 bg-teal-700 px-4 py-3 text-white shadow-sm sm:max-w-[90%] [&_*]:text-white [&_p:last-child]:mb-0">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={humanMdComponents}>{messageText}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkCjkFriendly]} components={humanMdComponents}>{messageText}</ReactMarkdown>
     </div>
   );
 };
@@ -93,7 +94,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       )}
       {showVisualBlocks && <AnswerVisualBlocks blocks={visualBlocks} />}
       <div className="max-w-none [overflow-wrap:anywhere]">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{processedText}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm, remarkCjkFriendly]} components={mdComponents}>{processedText}</ReactMarkdown>
       </div>
       
       {references.length > 0 && (

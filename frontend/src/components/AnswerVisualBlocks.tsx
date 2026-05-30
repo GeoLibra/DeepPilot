@@ -72,13 +72,13 @@ function T8Block({ block }: { block: VisualBlock }) {
   return (
     <VisualFrame block={block} icon={<FileText className="h-4 w-4" />}>
       {failed ? (
-        <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+        <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-white/55 bg-white/40 p-3 text-xs text-slate-700 backdrop-blur">
           {block.syntax}
         </pre>
       ) : (
         <div
           ref={containerRef}
-          className="t8-container min-h-[100px] rounded-lg border border-slate-200 bg-white p-4 text-slate-800"
+          className="t8-container min-h-[100px] rounded-xl border border-white/55 bg-white/50 p-4 text-slate-800 shadow-inner backdrop-blur"
         />
       )}
     </VisualFrame>
@@ -158,7 +158,7 @@ function InfographicBlock({ block }: { block: VisualBlock }) {
       ) : (
         <div
           ref={containerRef}
-          className="mx-auto min-h-[200px] w-full max-w-[720px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm [&_svg]:block [&_svg]:h-full [&_svg]:max-h-[200px] [&_svg]:w-full"
+          className="mx-auto min-h-[200px] w-full max-w-[720px] overflow-hidden rounded-xl border border-white/55 bg-white/60 shadow-sm backdrop-blur [&_svg]:block [&_svg]:h-full [&_svg]:max-h-[200px] [&_svg]:w-full"
         />
       )}
     </VisualFrame>
@@ -210,14 +210,14 @@ function NativeInfographic({ syntax }: { syntax: string }) {
 
   if (parsed.items.length === 0) {
     return (
-      <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-700">
+      <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-white/55 bg-white/40 p-4 text-xs leading-6 text-slate-700 backdrop-blur">
         {syntax}
       </pre>
     );
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-white/55 bg-white/45 p-4 shadow-sm backdrop-blur">
       {parsed.title && (
         <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-teal-700">
           {parsed.title}
@@ -227,7 +227,7 @@ function NativeInfographic({ syntax }: { syntax: string }) {
         {parsed.items.map((item, index) => (
           <div
             key={`${item.label}-${index}`}
-            className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+            className="rounded-xl border border-white/50 bg-white/40 p-3 backdrop-blur"
           >
             <div className="mb-2 flex items-center gap-2">
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-50 text-[11px] font-semibold text-teal-700">
@@ -259,8 +259,8 @@ function VisualFrame({
   children: ReactNode;
 }) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800">
+    <section className="glass-control min-w-0 overflow-hidden rounded-2xl bg-white/30">
+      <div className="flex items-center gap-2 border-b border-white/45 bg-white/20 px-4 py-3 text-sm font-medium text-slate-800">
         <span className="text-teal-700">{icon}</span>
         <span className="min-w-0 break-words">{block.title}</span>
       </div>

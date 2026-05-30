@@ -57,6 +57,7 @@ export default function App() {
   const [targetMessageId, setTargetMessageId] = useState<string | null>(() =>
     getMessageIdFromUrl()
   );
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [modelOptions, setModelOptions] = useState<ModelOption[]>(
     FALLBACK_MODEL_OPTIONS
   );
@@ -499,21 +500,23 @@ export default function App() {
   );
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.14),transparent_32%),linear-gradient(180deg,#f8fafc_0%,#eef6f4_48%,#f8fafc_100%)] font-sans text-slate-900 antialiased md:flex-row">
+    <div className="aurora-shell flex h-[100dvh] flex-col overflow-hidden font-sans text-slate-950 antialiased md:flex-row [&_svg]:stroke-[1.8]">
       <SessionSidebar
         sessions={sessions}
         activeSessionId={activeThreadId}
         isLoading={thread.isLoading}
         isRefreshing={isRefreshingSessions}
         error={sessionError}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapsed={() => setIsSidebarCollapsed((value) => !value)}
         onNewSession={handleNewSession}
         onSelectSession={handleSelectSession}
         onRenameSession={handleRenameSession}
         onDeleteSession={handleDeleteSession}
         onRefresh={refreshSessions}
       />
-      <main className="min-h-0 flex-1">
-        <div className="mx-auto h-full w-full max-w-6xl">
+      <main className="relative min-h-0 flex-1 bg-transparent">
+        <div className="mx-auto h-full w-full max-w-[1240px]">
           {displayMessages.length === 0 ? (
             <WelcomeScreen
               handleSubmit={handleSubmit}

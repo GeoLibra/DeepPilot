@@ -45,7 +45,7 @@ const HumanMessageBubble: React.FC<HumanMessageBubbleProps> = ({
   const messageText = getCleanMessageText(message);
 
   return (
-    <div className="max-w-[100%] rounded-2xl rounded-br-md border border-teal-700 bg-teal-700 px-4 py-3 text-white shadow-sm sm:max-w-[90%] [&_*]:text-white [&_p:last-child]:mb-0">
+    <div className="max-w-[100%] rounded-2xl border border-white/45 bg-gradient-to-br from-cyan-50/80 via-teal-50/70 to-white/45 px-4 py-3 text-slate-900 shadow-[0_18px_46px_rgba(20,83,101,0.16)] backdrop-blur-xl sm:max-w-[88%] [&_p]:text-slate-900 [&_p:last-child]:mb-0">
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkCjkFriendly]} components={humanMdComponents}>{messageText}</ReactMarkdown>
     </div>
   );
@@ -114,12 +114,12 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const isExportDone = activeFeedbackAction === "export";
   const isBranchDisabled = !messageId || (isLastMessage && isOverallLoading);
   const actionButtonClass =
-    "h-8 w-8 cursor-pointer rounded-full border border-slate-200 bg-white p-0 text-slate-500 shadow-none hover:bg-slate-50 hover:text-slate-800";
+    "glass-control h-8 w-8 cursor-pointer rounded-xl p-0 text-slate-600 shadow-none transition-all hover:bg-white/65 hover:text-slate-950";
 
   return (
-    <div className="relative flex min-w-0 flex-col break-words rounded-2xl border border-slate-200 bg-white/90 px-5 py-4 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
+    <div className="glass-card relative flex min-w-0 flex-col break-words rounded-2xl px-5 py-4">
       {activityForThisBubble && activityForThisBubble.length > 0 && (
-        <div className="mb-4 border-b border-slate-200 pb-4 text-xs">
+        <div className="mb-4 border-b border-white/45 pb-4 text-xs">
           <ActivityTimeline
             processedEvents={activityForThisBubble}
             isLoading={isLiveActivityForThisBubble}
@@ -132,7 +132,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       </div>
       
       {references.length > 0 && (
-        <div className="mt-4 border-t border-slate-100 pt-3">
+        <div className="mt-4 border-t border-white/45 pt-3">
           <div className="flex flex-wrap gap-2">
             {references.map((ref) => (
               <a
@@ -141,9 +141,9 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
                 target="_blank"
                 rel="noopener noreferrer"
                 title={ref.label}
-                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors no-underline"
+                className="glass-control inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs text-slate-600 no-underline transition-all hover:bg-white/65 hover:text-slate-950"
               >
-                <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-teal-100 text-[8px] font-bold text-teal-800">
+                <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-md bg-teal-100/70 text-[8px] font-bold text-teal-900">
                   {ref.id}
                 </span>
                 <span className="truncate max-w-[200px]">{ref.label}</span>
@@ -153,7 +153,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         </div>
       )}
 
-      <div className={cn("mt-3 flex justify-end gap-1", !hasText && "hidden")}>
+      <div className={cn("mt-3 flex justify-end gap-1.5", !hasText && "hidden")}>
         <Button
           type="button"
           variant="ghost"
@@ -308,9 +308,9 @@ export function ChatMessagesView({
                 key={message.id || `msg-${index}`}
                 id={messageElementId}
                 className={cn(
-                  "space-y-3 scroll-mt-6 rounded-3xl transition-shadow",
+                  "space-y-3 scroll-mt-6 rounded-2xl transition-shadow",
                   highlightedMessageId === message.id &&
-                    "ring-2 ring-teal-300 ring-offset-4 ring-offset-slate-50"
+                    "ring-2 ring-teal-500/45 ring-offset-4 ring-offset-transparent"
                 )}
               >
                 <div className={`flex items-start gap-3 ${message.type === "human" ? "justify-end" : ""}`}>
@@ -342,7 +342,7 @@ export function ChatMessagesView({
             (visibleMessages.length === 0 ||
               visibleMessages[visibleMessages.length - 1].type === "human") && (
               <div className="mt-3 flex items-start gap-3">
-                <div className="group relative min-h-[64px] w-full max-w-[92%] rounded-2xl border border-slate-200 bg-white/90 p-4 text-slate-900 shadow-[0_18px_60px_rgba(15,23,42,0.08)] md:max-w-[82%]">
+                <div className="glass-card group relative min-h-[64px] w-full max-w-[92%] rounded-2xl p-4 text-slate-900 md:max-w-[82%]">
                   {liveActivityEvents.length > 0 ? (
                     <div className="text-xs">
                       <ActivityTimeline
@@ -352,7 +352,7 @@ export function ChatMessagesView({
                     </div>
                   ) : (
                     <div className="flex h-full items-center justify-start gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-teal-700">
+                      <span className="glass-control flex h-8 w-8 items-center justify-center rounded-xl text-teal-800">
                         <Loader2 className="h-4 w-4 animate-spin" />
                       </span>
                       <div>
@@ -373,7 +373,7 @@ export function ChatMessagesView({
       </ScrollArea>
       {error && (
         <div className="mx-auto w-full max-w-5xl px-4 py-2">
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600 border border-red-200">
+          <div className="rounded-xl border border-red-100/70 bg-red-50/75 p-3 text-sm text-red-700 shadow-sm backdrop-blur">
             <strong>Error:</strong> {error}
           </div>
         </div>

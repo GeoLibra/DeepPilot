@@ -25,7 +25,7 @@ export const mdComponents: Components = {
   a: ({ className, children, href, ...props }) => (
     <a
       className={cn(
-        "inline-flex items-center justify-center relative -top-1.5 text-[9px] font-bold text-teal-700 hover:bg-teal-100 hover:text-teal-900 mx-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-teal-50 border border-teal-200 no-underline transition-colors cursor-pointer",
+        "relative -top-1.5 mx-0.5 inline-flex h-[16px] min-w-[16px] cursor-pointer items-center justify-center rounded-full border border-teal-200/80 bg-teal-50/70 px-1 text-[9px] font-bold text-teal-800 no-underline transition-colors hover:bg-white/70 hover:text-teal-950",
         className
       )}
       href={href}
@@ -54,7 +54,7 @@ export const mdComponents: Components = {
   blockquote: ({ className, children, ...props }) => (
     <blockquote
       className={cn(
-        "border-l-4 border-slate-300 pl-4 italic my-3 text-sm text-slate-600",
+        "my-3 border-l-4 border-teal-500/35 pl-4 text-sm italic text-slate-600",
         className
       )}
       {...props}
@@ -65,7 +65,7 @@ export const mdComponents: Components = {
   code: ({ className, children, ...props }) => (
     <code
       className={cn(
-        "rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-teal-800",
+        "rounded-md bg-white/55 px-1.5 py-0.5 font-mono text-xs text-teal-900 ring-1 ring-white/50",
         className
       )}
       {...props}
@@ -76,7 +76,7 @@ export const mdComponents: Components = {
   pre: ({ className, children, ...props }) => (
     <pre
       className={cn(
-        "my-4 overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50 p-4 font-mono text-xs text-slate-700",
+        "my-4 overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-white/55 bg-white/40 p-4 font-mono text-xs text-slate-700 backdrop-blur",
         className
       )}
       {...props}
@@ -85,7 +85,7 @@ export const mdComponents: Components = {
     </pre>
   ),
   hr: ({ className, ...props }) => (
-    <hr className={cn("border-slate-200 my-4", className)} {...props} />
+    <hr className={cn("my-4 border-white/55", className)} {...props} />
   ),
   table: ({ className, children, ...props }) => (
     <div className="my-3 overflow-x-auto">
@@ -97,7 +97,7 @@ export const mdComponents: Components = {
   th: ({ className, children, ...props }) => (
     <th
       className={cn(
-        "border border-slate-200 bg-slate-50 px-3 py-2 text-left font-semibold text-slate-900",
+        "border border-white/55 bg-white/50 px-3 py-2 text-left font-semibold text-slate-900",
         className
       )}
       {...props}
@@ -107,7 +107,7 @@ export const mdComponents: Components = {
   ),
   td: ({ className, children, ...props }) => (
     <td
-      className={cn("border border-slate-200 px-3 py-2 text-slate-700", className)}
+      className={cn("border border-white/55 bg-white/20 px-3 py-2 text-slate-700", className)}
       {...props}
     >
       {children}

@@ -288,7 +288,8 @@ def invoke_structured_model(
 
         schema_prompt = (
             f"{prompt}\n\n"
-            "Return only a valid JSON object matching this JSON schema. "
+            "Return only a valid JSON object instance matching this JSON schema. "
+            "Do not return a JSON schema or a dictionary containing a 'properties' key. Return the raw data object directly.\n"
             "Do not include markdown fences or explanatory text.\n"
             f"{json.dumps(output_schema.model_json_schema(), ensure_ascii=False)}"
         )
@@ -297,7 +298,16 @@ def invoke_structured_model(
             schema_prompt,
             temperature=temperature,
         )
-        return output_schema.model_validate(_extract_json_object(content))
+        
+        json_obj = _extract_json_object(content)
+        # Some models mistakenly wrap the output in a "properties" key
+        if "properties" in json_obj and isinstance(json_obj["properties"], dict):
+            expected_keys = output_schema.model_fields.keys()
+            # If the expected keys are inside "properties" and not at the top level, unwrap it
+            if any(k in json_obj["properties"] for k in expected_keys) and not any(k in json_obj for k in expected_keys):
+                json_obj = json_obj["properties"]
+                
+        return output_schema.model_validate(json_obj)
 
     llm = ChatGoogleGenerativeAI(
         model=model_name,

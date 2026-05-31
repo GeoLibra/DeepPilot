@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
-  Clock3,
   ClipboardList,
   FileText,
   Pencil,
@@ -53,9 +52,6 @@ function buildPlanMarkdown(interrupt: ResearchPlanReviewInterrupt) {
   if (plan.report_outline?.length) {
     lines.push("", "## Generate report");
     plan.report_outline.forEach((step, index) => lines.push(`${index + 1}. ${step}`));
-  }
-  if (plan.estimated_minutes) {
-    lines.push("", `Estimated preparation time: ${plan.estimated_minutes} minutes`);
   }
   return lines.join("\n");
 }
@@ -137,13 +133,6 @@ export function ResearchPlanReview({
                 </h3>
                 {numberedList(interrupt.plan.report_outline)}
               </div>
-            </div>
-          ) : null}
-
-          {interrupt.plan.estimated_minutes ? (
-            <div className="flex items-center gap-3 text-sm font-medium text-slate-700">
-              <Clock3 className="h-5 w-5 text-teal-700" />
-              预计需要 {interrupt.plan.estimated_minutes} 分钟准备好
             </div>
           ) : null}
         </div>

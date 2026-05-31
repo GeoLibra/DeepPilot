@@ -43,7 +43,6 @@ Instructions:
 - Make the plan specific enough for the user to review and modify.
 - Include targeted website/search research work, analysis work, and the final report structure.
 - Keep each step short and concrete.
-- Estimate only the preparation/research time in minutes.
 
 Output Format:
 - Format your response as a JSON object with these exact keys:
@@ -52,7 +51,6 @@ Output Format:
    - "research_steps": A list of concrete web research steps.
    - "analysis_steps": A list of concrete analysis steps after sources are gathered.
    - "report_outline": A list of final report sections or deliverables.
-   - "estimated_minutes": An integer estimate in minutes.
 
 User Topic:
 {research_topic}

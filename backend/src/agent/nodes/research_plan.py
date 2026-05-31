@@ -25,7 +25,6 @@ def format_research_plan_markdown(plan: dict) -> str:
     research_steps = plan.get("research_steps") or []
     analysis_steps = plan.get("analysis_steps") or []
     report_outline = plan.get("report_outline") or []
-    estimated_minutes = plan.get("estimated_minutes")
 
     lines = [f"# {title}"]
     if objective:
@@ -39,8 +38,6 @@ def format_research_plan_markdown(plan: dict) -> str:
     if report_outline:
         lines.extend(["", "## Generate report"])
         lines.extend(f"{idx}. {section}" for idx, section in enumerate(report_outline, 1))
-    if estimated_minutes:
-        lines.extend(["", f"Estimated preparation time: {estimated_minutes} minutes"])
 
     return "\n".join(lines).strip()
 

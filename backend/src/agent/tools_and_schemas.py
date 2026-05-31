@@ -25,9 +25,6 @@ class ResearchPlan(BaseModel):
     report_outline: List[str] = Field(
         description="The proposed final report sections or deliverables."
     )
-    estimated_minutes: int = Field(
-        description="A rough estimate of the time needed to prepare the research."
-    )
 
 
 class Reflection(BaseModel):

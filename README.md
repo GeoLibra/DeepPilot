@@ -1,6 +1,7 @@
 # DeepPilot
 
 DeepPilot is a full-stack research assistant. It takes a user question, generates focused search queries, gathers source-backed web context, reflects on missing information, and produces a cited final answer with optional visual blocks.
+![UI](./docs/ui.png)
 
 ## Project Structure
 

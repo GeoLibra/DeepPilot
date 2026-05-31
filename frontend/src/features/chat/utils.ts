@@ -37,32 +37,78 @@ function getEventPhase(event: ProcessedEvent): ResearchProgressPhase {
   );
 }
 
-function getProgressPercent(
-  step: ResearchProgressStep,
-  phaseEventCount: number
-): number {
-  return Math.min(
-    step.ceilingPercent,
-    step.basePercent + Math.max(phaseEventCount - 1, 0) * step.incrementPercent
-  );
-}
+
 
 export function deriveResearchProgress(
   processedEvents: ProcessedEvent[],
   isLoading: boolean
 ): ResearchProgress {
   const phaseCounts = new Map<ResearchProgressPhase, number>();
+  const loopPhaseCounts = new Map<ResearchProgressPhase, number>();
   const completedPhases = new Set<ResearchProgressPhase>();
+  
   let activeStep = RESEARCH_PROGRESS_STEPS[0];
+  let currentLoop = 0;
+  let maxLoops = 0;
+  
+  let maxPercent = RESEARCH_PROGRESS_INITIAL_PERCENT;
 
   processedEvents.forEach((event) => {
     const phase = getEventPhase(event);
     phaseCounts.set(phase, (phaseCounts.get(phase) || 0) + 1);
+    loopPhaseCounts.set(phase, (loopPhaseCounts.get(phase) || 0) + 1);
     completedPhases.add(phase);
 
-    const eventStep = getStep(phase);
-    if (eventStep.basePercent >= activeStep.basePercent) {
-      activeStep = eventStep;
+    if (event.currentLoop !== undefined && event.currentLoop !== currentLoop) {
+      currentLoop = event.currentLoop;
+      loopPhaseCounts.clear();
+      loopPhaseCounts.set(phase, 1); // This event is in the new loop
+    }
+    if (event.maxLoops !== undefined) maxLoops = event.maxLoops;
+
+    activeStep = getStep(phase);
+    
+    let eventPercent = activeStep.basePercent;
+    if (phase === "planning" || phase === "queries") {
+      eventPercent = Math.min(
+        activeStep.ceilingPercent,
+        activeStep.basePercent + Math.max((phaseCounts.get(phase) || 1) - 1, 0) * activeStep.incrementPercent
+      );
+    } else if (phase === "research" || phase === "reflection") {
+      const researchBase = 42;
+      const reflectionCeil = 84;
+      if (maxLoops > 0) {
+        const effectiveLoopIndex = phase === "research" ? currentLoop : Math.max(0, currentLoop - 1);
+        const loopSpan = (reflectionCeil - researchBase) / maxLoops;
+        const baseForCurrentLoop = researchBase + effectiveLoopIndex * loopSpan;
+        
+        if (phase === "research") {
+          const researchSpan = loopSpan * 0.6;
+          eventPercent = Math.min(
+            baseForCurrentLoop + researchSpan,
+            baseForCurrentLoop + Math.max((loopPhaseCounts.get(phase) || 1) - 1, 0) * activeStep.incrementPercent
+          );
+        } else {
+          eventPercent = Math.min(
+            baseForCurrentLoop + loopSpan,
+            baseForCurrentLoop + loopSpan * 0.6 + Math.max((loopPhaseCounts.get(phase) || 1) - 1, 0) * activeStep.incrementPercent
+          );
+        }
+      } else {
+        eventPercent = Math.min(
+          activeStep.ceilingPercent,
+          activeStep.basePercent + Math.max((phaseCounts.get(phase) || 1) - 1, 0) * activeStep.incrementPercent
+        );
+      }
+    } else {
+      eventPercent = Math.min(
+        activeStep.ceilingPercent,
+        activeStep.basePercent + Math.max((phaseCounts.get(phase) || 1) - 1, 0) * activeStep.incrementPercent
+      );
+    }
+    
+    if (eventPercent > maxPercent) {
+      maxPercent = eventPercent;
     }
   });
 
@@ -89,10 +135,7 @@ export function deriveResearchProgress(
   }
 
   return {
-    percent: getProgressPercent(
-      activeStep,
-      phaseCounts.get(activeStep.phase) || 1
-    ),
+    percent: Math.floor(maxPercent),
     label: activeStep.activeLabel,
     activePhase: activeStep.phase,
     isComplete: false,

@@ -33,12 +33,19 @@ export function useChatStream(
     onUpdateEvent: (event: StreamUpdateEvent) => {
       let processedEvent: ProcessedEvent | null = null;
       if (event.plan_research) {
+        let maxLoopsFromEffort = 3;
+        switch (lastSubmittedRef.current?.effort) {
+          case "low": maxLoopsFromEffort = 1; break;
+          case "medium": maxLoopsFromEffort = 3; break;
+          case "high": maxLoopsFromEffort = 10; break;
+        }
         processedEvent = {
           phase: "planning",
           title: "Planning Research",
           data:
             event.plan_research.research_plan?.objective ||
             "Preparing the research plan.",
+          maxLoops: maxLoopsFromEffort,
         };
       } else if (event.generate_query) {
         processedEvent = {
@@ -61,6 +68,8 @@ export function useChatStream(
           phase: "reflection",
           title: "Reflection",
           data: "Analysing Web Research Results",
+          currentLoop: event.reflection.research_loop_count,
+          maxLoops: event.reflection.max_research_loops,
         };
       } else if (event.finalize_answer) {
         processedEvent = {

@@ -10,6 +10,8 @@ export type ProcessedEvent = {
   title: string;
   data: unknown;
   phase?: ResearchProgressPhase;
+  currentLoop?: number;
+  maxLoops?: number;
 };
 
 export type ResearchProgressStep = {

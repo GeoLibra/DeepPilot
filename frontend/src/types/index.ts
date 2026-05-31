@@ -73,7 +73,10 @@ export type StreamUpdateEvent = {
   web_research?: {
     sources_gathered?: SourceEvent[];
   };
-  reflection?: unknown;
+  reflection?: {
+    research_loop_count?: number;
+    max_research_loops?: number;
+  };
   finalize_answer?: unknown;
   visualize_answer?: {
     visual_blocks?: unknown[];

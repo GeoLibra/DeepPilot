@@ -36,6 +36,11 @@ def reflection(state: OverallState, config: RunnableConfig) -> ReflectionState:
     # Increment the research loop count and get the reasoning model
     state["research_loop_count"] = state.get("research_loop_count", 0) + 1
     reasoning_model = state.get("reasoning_model", configurable.reflection_model)
+    max_research_loops = (
+        state.get("max_research_loops")
+        if state.get("max_research_loops") is not None
+        else configurable.max_research_loops
+    )
 
     # Format the prompt
     current_date = get_current_date()
@@ -57,6 +62,7 @@ def reflection(state: OverallState, config: RunnableConfig) -> ReflectionState:
         "knowledge_gap": result.knowledge_gap,
         "follow_up_queries": result.follow_up_queries,
         "research_loop_count": state["research_loop_count"],
+        "max_research_loops": max_research_loops,
         "number_of_ran_queries": len(state["search_query"]),
     }
 

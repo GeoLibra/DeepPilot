@@ -19,10 +19,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkCjkFriendly from "remark-cjk-friendly";
 import { AnswerVisualBlocks } from "@/components/AnswerVisualBlocks";
-import {
-  ActivityTimeline,
-  ProcessedEvent,
-} from "@/components/ActivityTimeline"; // Assuming ActivityTimeline is in the same dir or adjust path
+import { ActivityTimeline } from "@/components/ActivityTimeline";
+import type { ProcessedEvent } from "@/features/chat/types";
 
 import { mdComponents, humanMdComponents } from "./markdown-components";
 import {

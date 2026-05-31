@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 import { useStream } from "@langchain/langgraph-sdk/react";
 import { Client, type Message } from "@langchain/langgraph-sdk";
-import { ProcessedEvent } from "@/components/ActivityTimeline";
 import type { AgentState, StreamUpdateEvent, LastRunDetails } from "@/types";
+import type { ProcessedEvent } from "@/features/chat/types";
 import { getErrorMessage } from "@/lib/message-utils";
 import { updateSessionAfterRun } from "@/lib/sessions";
 
@@ -32,8 +32,17 @@ export function useChatStream(
     },
     onUpdateEvent: (event: StreamUpdateEvent) => {
       let processedEvent: ProcessedEvent | null = null;
-      if (event.generate_query) {
+      if (event.plan_research) {
         processedEvent = {
+          phase: "planning",
+          title: "Planning Research",
+          data:
+            event.plan_research.research_plan?.objective ||
+            "Preparing the research plan.",
+        };
+      } else if (event.generate_query) {
+        processedEvent = {
+          phase: "queries",
           title: "Generating Search Queries",
           data: event.generate_query?.search_query?.join(", ") || "",
         };
@@ -43,22 +52,26 @@ export function useChatStream(
         const uniqueLabels = [...new Set(sources.map((source) => source.label).filter(Boolean))];
         const exampleLabels = uniqueLabels.slice(0, 3).join(", ");
         processedEvent = {
+          phase: "research",
           title: "Web Research",
           data: `Gathered ${numSources} sources. Related to: ${exampleLabels || "N/A"}.`,
         };
       } else if (event.reflection) {
         processedEvent = {
+          phase: "reflection",
           title: "Reflection",
           data: "Analysing Web Research Results",
         };
       } else if (event.finalize_answer) {
         processedEvent = {
+          phase: "finalize",
           title: "Finalizing Answer",
           data: "Composing and presenting the final answer.",
         };
       } else if (event.visualize_answer) {
         const blocks = event.visualize_answer.visual_blocks || [];
         processedEvent = {
+          phase: "visuals",
           title: "Formatting Visuals",
           data: `Prepared ${blocks.length} visual block${blocks.length === 1 ? "" : "s"}.`,
         };

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Client, type Message } from "@langchain/langgraph-sdk";
-import type { SessionSummary } from "@/types";
+import type { AgentState, SessionSummary } from "@/types";
 import { ACTIVE_THREAD_STORAGE_KEY, RECENT_SESSION_RESTORE_MS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/message-utils";
 import {
@@ -10,7 +10,7 @@ import {
   getSessionMessages,
 } from "@/lib/sessions";
 
-export function useSessions(client: Client<any>) {
+export function useSessions(client: Client<AgentState>) {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [activeSessionMessages, setActiveSessionMessages] = useState<Message[]>([]);
   const [isRefreshingSessions, setIsRefreshingSessions] = useState(false);

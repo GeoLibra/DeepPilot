@@ -26,10 +26,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         DeepPilot Research
       </p>
       <h1 className="text-3xl font-semibold tracking-normal text-slate-950 md:text-5xl">
-        Research with receipts.
+        Research with receipts
       </h1>
       <p className="mx-auto max-w-2xl text-base leading-7 text-slate-600 md:text-lg">
-        Search, compare sources, and turn messy context into a cited briefing.
+        Search, compare sources, and turn messy context into a cited briefing
       </p>
     </div>
     <div className="relative z-10 w-full">

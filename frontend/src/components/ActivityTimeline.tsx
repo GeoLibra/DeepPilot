@@ -12,10 +12,9 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export interface ProcessedEvent {
-  title: string;
-  data: unknown;
-}
+import { ResearchProgress } from "@/features/chat/components/ResearchProgress";
+import type { ProcessedEvent } from "@/features/chat/types";
+import { deriveResearchProgress } from "@/features/chat/utils";
 
 interface ActivityTimelineProps {
   processedEvents: ProcessedEvent[];
@@ -28,6 +27,7 @@ export function ActivityTimeline({
 }: ActivityTimelineProps) {
   const [isTimelineCollapsed, setIsTimelineCollapsed] =
     useState<boolean>(false);
+  const progress = deriveResearchProgress(processedEvents, isLoading);
   const getEventIcon = (title: string, index: number) => {
     if (index === 0 && isLoading && processedEvents.length === 0) {
       return <Loader2 className="h-4 w-4 animate-spin text-teal-700" />;
@@ -76,66 +76,69 @@ export function ActivityTimeline({
         )}
       </button>
       {!isTimelineCollapsed && (
-        <ScrollArea className="max-h-96 overflow-y-auto">
-          <div className="px-4 py-4">
-            {isLoading && processedEvents.length === 0 && (
-              <div className="relative pl-8 pb-4">
-                <div className="absolute left-3 top-3.5 h-full w-px bg-white/55" />
-                <div className="glass-control absolute left-0.5 top-2 flex h-5 w-5 items-center justify-center rounded-lg text-teal-800">
-                  <Loader2 className="h-3 w-3 animate-spin text-teal-700" />
+        <>
+          <ResearchProgress progress={progress} />
+          <ScrollArea className="max-h-96 overflow-y-auto">
+            <div className="px-4 py-4">
+              {isLoading && processedEvents.length === 0 && (
+                <div className="relative pl-8 pb-4">
+                  <div className="absolute left-3 top-3.5 h-full w-px bg-white/55" />
+                  <div className="glass-control absolute left-0.5 top-2 flex h-5 w-5 items-center justify-center rounded-lg text-teal-800">
+                    <Loader2 className="h-3 w-3 animate-spin text-teal-700" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">
+                      Planning research...
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-800">
-                    Searching...
+              )}
+              {processedEvents.length > 0 ? (
+                <div className="space-y-0">
+                  {processedEvents.map((eventItem, index) => (
+                    <div key={index} className="relative pl-8 pb-4">
+                      {index < processedEvents.length - 1 ||
+                      (isLoading && index === processedEvents.length - 1) ? (
+                        <div className="absolute left-3 top-3.5 h-full w-px bg-white/55" />
+                      ) : null}
+                      <div className="glass-control absolute left-0.5 top-2 flex h-6 w-6 items-center justify-center rounded-lg">
+                        {getEventIcon(eventItem.title, index)}
+                      </div>
+                      <div>
+                        <p className="mb-1 text-sm font-semibold text-slate-900">
+                          {eventItem.title}
+                        </p>
+                        <p className="break-words text-xs leading-relaxed text-slate-600">
+                          {formatEventData(eventItem.data)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  {isLoading && processedEvents.length > 0 && (
+                    <div className="relative pl-8 pb-4">
+                      <div className="glass-control absolute left-0.5 top-2 flex h-5 w-5 items-center justify-center rounded-lg">
+                        <Loader2 className="h-3 w-3 animate-spin text-teal-700" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">
+                          Working...
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : !isLoading ? (
+                <div className="flex h-full flex-col items-center justify-center pt-10 text-slate-500">
+                  <Info className="h-6 w-6 mb-3" />
+                  <p className="text-sm">No activity to display.</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Timeline will update during processing.
                   </p>
                 </div>
-              </div>
-            )}
-            {processedEvents.length > 0 ? (
-              <div className="space-y-0">
-                {processedEvents.map((eventItem, index) => (
-                  <div key={index} className="relative pl-8 pb-4">
-                    {index < processedEvents.length - 1 ||
-                    (isLoading && index === processedEvents.length - 1) ? (
-                      <div className="absolute left-3 top-3.5 h-full w-px bg-white/55" />
-                    ) : null}
-                    <div className="glass-control absolute left-0.5 top-2 flex h-6 w-6 items-center justify-center rounded-lg">
-                      {getEventIcon(eventItem.title, index)}
-                    </div>
-                    <div>
-                      <p className="mb-1 text-sm font-semibold text-slate-900">
-                        {eventItem.title}
-                      </p>
-                      <p className="break-words text-xs leading-relaxed text-slate-600">
-                        {formatEventData(eventItem.data)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {isLoading && processedEvents.length > 0 && (
-                  <div className="relative pl-8 pb-4">
-                    <div className="glass-control absolute left-0.5 top-2 flex h-5 w-5 items-center justify-center rounded-lg">
-                      <Loader2 className="h-3 w-3 animate-spin text-teal-700" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">
-                        Searching...
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : !isLoading ? ( // Only show "No activity" if not loading and no events
-              <div className="flex h-full flex-col items-center justify-center pt-10 text-slate-500">
-                <Info className="h-6 w-6 mb-3" />
-                <p className="text-sm">No activity to display.</p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Timeline will update during processing.
-                </p>
-              </div>
-            ) : null}
-          </div>
-        </ScrollArea>
+              ) : null}
+            </div>
+          </ScrollArea>
+        </>
       )}
     </section>
   );

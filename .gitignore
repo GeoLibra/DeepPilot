@@ -34,7 +34,7 @@ Thumbs.db
 *.sw?
 
 # Optional backend venv (if created in root)
-#.venv/ 
+#.venv/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -200,3 +200,4 @@ cython_debug/
 #.idea/
 
 backend/.langgraph_api
+.codegraph

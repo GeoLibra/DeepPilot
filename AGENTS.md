@@ -406,6 +406,24 @@ Before generating code:
 
 ---
 
+# Compaction Checkpoint Rules
+
+When context is close to compaction, or when the user asks to compact:
+
+1. update `.ai/CHECKPOINT.md` first
+2. record the current goal
+3. record completed work
+4. record pending work
+5. record risks or blockers
+6. record key files
+7. record verification commands and their status
+8. run `/compact` only after the checkpoint is updated
+9. after compaction, read `.ai/CHECKPOINT.md` before continuing work
+
+Do not rely on memory alone across compaction boundaries.
+
+---
+
 # Refactor Rules
 
 Do NOT refactor entire systems unnecessarily.

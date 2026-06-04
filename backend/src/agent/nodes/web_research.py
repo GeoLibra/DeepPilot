@@ -1,3 +1,5 @@
+"""Web research node backed by Gemini grounded search."""
+
 import os
 
 from dotenv import load_dotenv
@@ -5,6 +7,7 @@ from google.genai import Client
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Send
 
+from agent.citation_audit import audit_source_citations
 from agent.configuration import Configuration
 from agent.prompts import get_current_date, web_searcher_instructions
 from agent.state import OverallState, QueryGenerationState, WebSearchState
@@ -67,11 +70,14 @@ def web_research(state: WebSearchState, config: RunnableConfig) -> OverallState:
     resolved_urls = resolve_urls(grounding_chunks, state["id"])
     # Gets the citations and adds them to the generated text
     citations = get_citations(response, resolved_urls)
-    modified_text = insert_citation_markers(response.text or "", citations)
-    sources_gathered = [item for citation in citations for item in citation["segments"]]
+    source_audit = audit_source_citations(citations)
+    filtered_citations = source_audit["citations"]
+    modified_text = insert_citation_markers(response.text or "", filtered_citations)
+    sources_gathered = [item for citation in filtered_citations for item in citation["segments"]]
 
     return {
         "sources_gathered": sources_gathered,
+        "source_audit": [source_audit["audit"]],
         "search_query": [state["search_query"]],
         "web_research_result": [modified_text],
     }

@@ -1,13 +1,15 @@
+"""LangGraph wiring for the DeepPilot research agent."""
+
 from langgraph.graph import END, START, StateGraph
 
 from agent.configuration import Configuration
-from agent.state import OverallState
-
-from agent.nodes.research_plan import plan_research
-from agent.nodes.query import generate_query
-from agent.nodes.web_research import web_research, continue_to_web_research
-from agent.nodes.reflection import reflection, evaluate_research
 from agent.nodes.answer import finalize_answer, visualize_answer
+from agent.nodes.citation_audit import verify_citations
+from agent.nodes.query import generate_query
+from agent.nodes.reflection import evaluate_research, reflection
+from agent.nodes.research_plan import plan_research
+from agent.nodes.web_research import continue_to_web_research, web_research
+from agent.state import OverallState
 
 # Create our Agent Graph
 builder = StateGraph(OverallState, config_schema=Configuration)
@@ -18,6 +20,7 @@ builder.add_node("generate_query", generate_query)
 builder.add_node("web_research", web_research)
 builder.add_node("reflection", reflection)
 builder.add_node("finalize_answer", finalize_answer)
+builder.add_node("verify_citations", verify_citations)
 builder.add_node("visualize_answer", visualize_answer)
 
 # Set the entrypoint as `plan_research`
@@ -34,8 +37,9 @@ builder.add_edge("web_research", "reflection")
 builder.add_conditional_edges(
     "reflection", evaluate_research, ["web_research", "finalize_answer"]
 )
-# Finalize the answer and attach optional visual blocks
-builder.add_edge("finalize_answer", "visualize_answer")
+# Finalize the answer, audit citations, and attach optional visual blocks
+builder.add_edge("finalize_answer", "verify_citations")
+builder.add_edge("verify_citations", "visualize_answer")
 builder.add_edge("visualize_answer", END)
 
 graph = builder.compile(name="pro-search-agent")

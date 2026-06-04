@@ -1,8 +1,11 @@
+"""Prompt templates used by the DeepPilot research graph."""
+
 from datetime import datetime
 
 
 # Get current date in a readable format
 def get_current_date():
+    """Return the current date in a human-readable prompt format."""
     return datetime.now().strftime("%B %d, %Y")
 
 
@@ -111,12 +114,36 @@ Instructions:
 - You have access to the user's question.
 - Generate a high-quality answer to the user's question based on the provided summaries and the user's question.
 - Include the sources you used from the Summaries in the answer correctly, use markdown format (e.g. [apnews](https://vertexaisearch.cloud.google.com/id/1-0)). THIS IS A MUST.
+- Each citation must be attached to a claim that the cited source supports. Do not cite an unrelated source merely because it appeared in the summaries.
+- Do not invent URLs. Use only source URLs present in the Summaries.
 
 User Context:
 - {research_topic}
 
 Summaries:
 {summaries}"""
+
+
+citation_repair_instructions = """You are a citation quality reviewer repairing a final research answer.
+
+Goal:
+- Rewrite the answer so it no longer presents dead, invalid, or unsupported citations as trustworthy evidence.
+- Preserve useful content that remains supported by available citations.
+
+Rules:
+- Do not invent replacement URLs.
+- If a cited URL is `not_found`, `invalid_url`, `timeout`, `server_error`, `client_error`, or `request_error`, remove that citation and remove or soften the surrounding claim unless another cited source in the answer supports it.
+- If a cited URL is `blocked` or `rate_limited`, do not call it a 404. Either mark the source as inaccessible for automated verification or remove the citation if the claim cannot be supported.
+- A URL being reachable is not enough; keep citations only where they support the surrounding claim.
+- Keep the user's language and the original answer structure as much as possible.
+- Return only the revised answer, with no audit commentary.
+
+Final Answer:
+{answer}
+
+Citation Audit:
+{citation_audit}
+"""
 
 
 visualization_instructions = """Create optional visual presentation blocks for the final answer.

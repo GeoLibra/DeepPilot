@@ -10,7 +10,7 @@ import {
 import {
   getCleanMessageText,
   getPreviewMessageText,
-  isInternalQueryMessage,
+  isInternalAgentMessage,
   normalizeWhitespace,
 } from "./message-utils";
 
@@ -49,12 +49,8 @@ function getFirstHumanMessage(messages: Message[]) {
   return messages.find((message) => message.type === "human");
 }
 
-function getLastMessage(messages: Message[]) {
-  return messages.length > 0 ? messages[messages.length - 1] : undefined;
-}
-
 function getLastVisibleMessage(messages: Message[]) {
-  return [...messages].reverse().find((message) => !isInternalQueryMessage(message));
+  return [...messages].reverse().find((message) => !isInternalAgentMessage(message));
 }
 
 function getMessageIndex(messages: Message[], messageId: string) {
@@ -69,7 +65,7 @@ function getMessagesThroughMessage(messages: Message[], messageId: string) {
 
 function getTurnMessages(messages: Message[], messageId: string) {
   const visibleMessages = messages.filter(
-    (message) => !isInternalQueryMessage(message)
+    (message) => !isInternalAgentMessage(message)
   );
   const targetIndex = getMessageIndex(visibleMessages, messageId);
   if (targetIndex < 0) return [];
@@ -185,8 +181,9 @@ export function threadToSessionSummary(thread: Thread<AgentState>): SessionSumma
   const firstHumanText = getFirstHumanMessage(messages)
     ? getPreviewMessageText(getFirstHumanMessage(messages)!)
     : "";
-  const lastMessageText = getLastMessage(messages)
-    ? getPreviewMessageText(getLastMessage(messages)!)
+  const lastVisibleMessage = getLastVisibleMessage(messages);
+  const lastMessageText = lastVisibleMessage
+    ? getPreviewMessageText(lastVisibleMessage)
     : "";
 
   return {
@@ -315,8 +312,9 @@ export async function updateSessionAfterRun(
   const firstHumanText = getFirstHumanMessage(messages)
     ? getPreviewMessageText(getFirstHumanMessage(messages)!)
     : "";
-  const lastMessageText = getLastMessage(messages)
-    ? getPreviewMessageText(getLastMessage(messages)!)
+  const lastVisibleMessage = getLastVisibleMessage(messages);
+  const lastMessageText = lastVisibleMessage
+    ? getPreviewMessageText(lastVisibleMessage)
     : "";
 
   const shouldKeepTitle = existingTitle && titleSource === "user";

@@ -22,6 +22,7 @@ export type ResearchPlan = {
   research_steps?: string[];
   analysis_steps?: string[];
   report_outline?: string[];
+  estimated_minutes?: number;
   markdown?: string;
 };
 

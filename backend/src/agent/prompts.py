@@ -116,6 +116,7 @@ Instructions:
 - Include the sources you used from the Summaries in the answer correctly, use markdown format (e.g. [apnews](https://vertexaisearch.cloud.google.com/id/1-0)). THIS IS A MUST.
 - Each citation must be attached to a claim that the cited source supports. Do not cite an unrelated source merely because it appeared in the summaries.
 - Do not invent URLs. Use only source URLs present in the Summaries.
+- If the summaries only indicate web research failures and contain no sourced evidence, say that web research is currently unavailable and ask the user to retry. Do not invent sources or citations.
 
 User Context:
 - {research_topic}

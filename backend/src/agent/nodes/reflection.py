@@ -6,10 +6,11 @@ from langgraph.types import Send
 
 from agent.configuration import Configuration
 from agent.model_registry import invoke_structured_model
+from agent.nodes.research_plan import get_research_context
 from agent.prompts import get_current_date, reflection_instructions
 from agent.state import OverallState, ReflectionState
 from agent.tools_and_schemas import Reflection
-from agent.nodes.research_plan import get_research_context
+from agent.utils import get_successful_web_research_results
 
 load_dotenv()
 
@@ -42,12 +43,27 @@ def reflection(state: OverallState, config: RunnableConfig) -> ReflectionState:
         else configurable.max_research_loops
     )
 
+    web_research_results = state.get("web_research_result", [])
+    successful_results = get_successful_web_research_results(web_research_results)
+    if web_research_results and not successful_results:
+        return {
+            "is_sufficient": True,
+            "knowledge_gap": (
+                "Web research provider requests failed before sourced summaries "
+                "could be gathered."
+            ),
+            "follow_up_queries": [],
+            "research_loop_count": state["research_loop_count"],
+            "max_research_loops": max_research_loops,
+            "number_of_ran_queries": len(state["search_query"]),
+        }
+
     # Format the prompt
     current_date = get_current_date()
     formatted_prompt = reflection_instructions.format(
         current_date=current_date,
         research_topic=get_research_context(state),
-        summaries="\n\n---\n\n".join(state["web_research_result"]),
+        summaries="\n\n---\n\n".join(successful_results or web_research_results),
     )
     result = invoke_structured_model(
         reasoning_model,

@@ -5,6 +5,9 @@ from typing import Any, Optional
 from langchain_core.runnables import RunnableConfig
 
 
+DEFAULT_WEB_SEARCH_MODEL = "gemini-3.5-flash"
+
+
 class Configuration(BaseModel):
     """The configuration for the agent."""
 
@@ -16,7 +19,7 @@ class Configuration(BaseModel):
     )
 
     web_search_model: str = Field(
-        default="gemini-2.0-flash",
+        default=DEFAULT_WEB_SEARCH_MODEL,
         metadata={
             "description": "The Google model to use for grounded web search."
         },

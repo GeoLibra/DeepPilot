@@ -5,12 +5,16 @@ import {
   Copy,
   CopyCheck,
   Download,
+  PencilLine,
   GitBranchPlus,
   Loader2,
+  RotateCcw,
   Search,
   Share2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { InputForm } from "@/components/InputForm";
 import { ResearchPlanReview } from "@/components/ResearchPlanReview";
 import type { ModelOption, ResearchPlanReviewInterrupt } from "@/types";
@@ -26,26 +30,129 @@ import { mdComponents, humanMdComponents } from "./markdown-components";
 import {
   processMessageCitations,
   getCleanMessageText,
-  isInternalQueryMessage,
+  isInternalAgentMessage,
   getVisualBlocks,
 } from "@/lib/message-utils";
 import { getMessageElementId } from "@/lib/sessions";
 import { cn } from "@/lib/utils";
+import {
+  MESSAGE_ACTION_FEEDBACK_MS,
+  MESSAGE_COPY_FEEDBACK_MS,
+} from "@/lib/constants";
+
+const messageActionButtonClass =
+  "glass-control h-8 w-8 cursor-pointer rounded-xl p-0 text-slate-600 shadow-none transition-all hover:bg-white/65 hover:text-slate-950";
+const humanMessageActionButtonClass =
+  "h-8 w-8 cursor-pointer rounded-xl bg-white/80 p-0 text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.10)] backdrop-blur transition-all hover:bg-white hover:text-slate-950";
 
 // Props for HumanMessageBubble
 interface HumanMessageBubbleProps {
   message: Message;
+  copiedMessageId: string | null;
+  editingMessageId: string | null;
+  editingText: string;
+  isLoading: boolean;
+  onCopy: (text: string, messageId: string) => void;
+  onEditStart: (message: Message) => void;
+  onEditChange: (value: string) => void;
+  onEditCancel: () => void;
+  onEditSubmit: (messageId: string) => void;
 }
 
 // HumanMessageBubble Component
 const HumanMessageBubble: React.FC<HumanMessageBubbleProps> = ({
   message,
+  copiedMessageId,
+  editingMessageId,
+  editingText,
+  isLoading,
+  onCopy,
+  onEditStart,
+  onEditChange,
+  onEditCancel,
+  onEditSubmit,
 }) => {
   const messageText = getCleanMessageText(message);
+  const messageId = message.id;
+  const isEditing = messageId === editingMessageId;
+  const trimmedEditingText = editingText.trim();
 
   return (
-    <div className="max-w-[100%] rounded-2xl border border-white/45 bg-gradient-to-br from-cyan-50/80 via-teal-50/70 to-white/45 px-4 py-3 text-slate-900 shadow-[0_18px_46px_rgba(20,83,101,0.16)] backdrop-blur-xl sm:max-w-[88%] [&_p]:text-slate-900 [&_p:last-child]:mb-0">
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkCjkFriendly]} components={humanMdComponents}>{messageText}</ReactMarkdown>
+    <div className="group relative max-w-[100%] rounded-2xl border border-white/45 bg-gradient-to-br from-cyan-50/80 via-teal-50/70 to-white/45 px-4 py-3 text-slate-900 shadow-[0_18px_46px_rgba(20,83,101,0.16)] backdrop-blur-xl sm:max-w-[88%] [&_p]:text-slate-900 [&_p:last-child]:mb-0">
+      {isEditing ? (
+        <div className="flex min-w-[min(520px,calc(100vw-3rem))] flex-col gap-3">
+          <Textarea
+            value={editingText}
+            onChange={(event) => onEditChange(event.target.value)}
+            className="min-h-[96px] resize-y rounded-xl border-white/55 bg-white/55 text-base text-slate-950 shadow-none placeholder:text-slate-400 focus-visible:ring-teal-500/35"
+            autoFocus
+          />
+          <div className="flex justify-end gap-1.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={humanMessageActionButtonClass}
+              onClick={onEditCancel}
+              aria-label="Cancel edit"
+              title="Cancel edit"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={humanMessageActionButtonClass}
+              disabled={!messageId || !trimmedEditingText}
+              onClick={() => messageId && onEditSubmit(messageId)}
+              aria-label="Regenerate"
+              title="Regenerate"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkCjkFriendly]} components={humanMdComponents}>{messageText}</ReactMarkdown>
+          <div
+            className={cn(
+              "mt-3 flex justify-end gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100",
+              !messageText && "hidden"
+            )}
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={humanMessageActionButtonClass}
+              disabled={!messageId}
+              onClick={() => messageId && onCopy(messageText, messageId)}
+              aria-label={copiedMessageId === messageId ? "Copied" : "Copy message"}
+              title={copiedMessageId === messageId ? "Copied" : "Copy message"}
+            >
+              {copiedMessageId === messageId ? (
+                <CopyCheck className="h-4 w-4 text-teal-700" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={humanMessageActionButtonClass}
+              disabled={!messageId || isLoading}
+              onClick={() => onEditStart(message)}
+              aria-label="Edit message"
+              title="Edit message"
+            >
+              <PencilLine className="h-4 w-4" />
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -112,8 +219,6 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const isShareDone = activeFeedbackAction === "share";
   const isExportDone = activeFeedbackAction === "export";
   const isBranchDisabled = !messageId || (isLastMessage && isOverallLoading);
-  const actionButtonClass =
-    "glass-control h-8 w-8 cursor-pointer rounded-xl p-0 text-slate-600 shadow-none transition-all hover:bg-white/65 hover:text-slate-950";
 
   return (
     <div className="glass-card relative flex min-w-0 flex-col break-words rounded-2xl px-5 py-4">
@@ -157,7 +262,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
           type="button"
           variant="ghost"
           size="icon"
-          className={actionButtonClass}
+          className={messageActionButtonClass}
           disabled={!messageId}
           onClick={() => messageId && handleCopy(rawMessageText, messageId)}
           aria-label={copiedMessageId === messageId ? "Copied" : "Copy answer"}
@@ -173,7 +278,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
           type="button"
           variant="ghost"
           size="icon"
-          className={actionButtonClass}
+          className={messageActionButtonClass}
           disabled={!messageId}
           onClick={() => messageId && handleShare(messageId)}
           aria-label={isShareDone ? "Link copied" : "Share answer"}
@@ -189,7 +294,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
           type="button"
           variant="ghost"
           size="icon"
-          className={actionButtonClass}
+          className={messageActionButtonClass}
           disabled={!messageId}
           onClick={() => messageId && handleExport(messageId)}
           aria-label={isExportDone ? "Downloaded" : "Download answer"}
@@ -205,7 +310,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
           type="button"
           variant="ghost"
           size="icon"
-          className={actionButtonClass}
+          className={messageActionButtonClass}
           disabled={isBranchDisabled}
           onClick={() => messageId && handleBranch(messageId)}
           aria-label="Branch from here"
@@ -234,6 +339,7 @@ interface ChatMessagesViewProps {
   onBranchMessage: (messageId: string) => Promise<void>;
   onShareMessage: (messageId: string) => Promise<void>;
   onExportMessage: (messageId: string) => Promise<void>;
+  onRegenerateMessage: (messageId: string, revisedText: string) => void;
   onApproveResearchPlan: (planMarkdown: string) => void;
 }
 
@@ -253,13 +359,16 @@ export function ChatMessagesView({
   onBranchMessage,
   onShareMessage,
   onExportMessage,
+  onRegenerateMessage,
   onApproveResearchPlan,
 }: ChatMessagesViewProps) {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
   const [feedbackMessageAction, setFeedbackMessageAction] =
     useState<MessageActionFeedback | null>(null);
   const visibleMessages = messages.filter(
-    (message) => !isInternalQueryMessage(message)
+    (message) => !isInternalAgentMessage(message)
   );
 
   const showMessageFeedback = (messageId: string, action: "share" | "export") => {
@@ -270,14 +379,14 @@ export function ChatMessagesView({
           ? null
           : current
       );
-    }, 1800);
+    }, MESSAGE_ACTION_FEEDBACK_MS);
   };
 
   const handleCopy = async (text: string, messageId: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedMessageId(messageId);
-      setTimeout(() => setCopiedMessageId(null), 2000); // Reset after 2 seconds
+      window.setTimeout(() => setCopiedMessageId(null), MESSAGE_COPY_FEEDBACK_MS);
     } catch (err) {
       console.error("Failed to copy text: ", err);
     }
@@ -295,6 +404,24 @@ export function ChatMessagesView({
 
   const handleBranch = async (messageId: string) => {
     await onBranchMessage(messageId);
+  };
+
+  const handleEditStart = (message: Message) => {
+    if (!message.id || isLoading) return;
+    setEditingMessageId(message.id);
+    setEditingText(getCleanMessageText(message));
+  };
+
+  const handleEditCancel = () => {
+    setEditingMessageId(null);
+    setEditingText("");
+  };
+
+  const handleEditSubmit = (messageId: string) => {
+    const revisedText = editingText.trim();
+    if (!revisedText) return;
+    handleEditCancel();
+    onRegenerateMessage(messageId, revisedText);
   };
 
   return (
@@ -320,6 +447,15 @@ export function ChatMessagesView({
                   {message.type === "human" ? (
                     <HumanMessageBubble
                       message={message}
+                      copiedMessageId={copiedMessageId}
+                      editingMessageId={editingMessageId}
+                      editingText={editingText}
+                      isLoading={isLoading}
+                      onCopy={handleCopy}
+                      onEditStart={handleEditStart}
+                      onEditChange={setEditingText}
+                      onEditCancel={handleEditCancel}
+                      onEditSubmit={handleEditSubmit}
                     />
                   ) : (
                     <AiMessageBubble

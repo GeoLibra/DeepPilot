@@ -1,5 +1,8 @@
 from typing import Any, Dict, List, Optional
-from langchain_core.messages import AnyMessage, AIMessage, HumanMessage
+
+from langchain_core.messages import AIMessage, AnyMessage, HumanMessage
+
+WEB_RESEARCH_FAILURE_PREFIX = "[WEB_RESEARCH_FAILED]"
 
 
 def get_research_topic(messages: List[AnyMessage]) -> str:
@@ -19,12 +22,40 @@ def get_research_topic(messages: List[AnyMessage]) -> str:
     return research_topic
 
 
+def format_web_research_failure(
+    query: str,
+    error_type: str,
+    error_message: str,
+) -> str:
+    """Create a machine-detectable summary for a failed web search."""
+    return (
+        f"{WEB_RESEARCH_FAILURE_PREFIX}\n"
+        f"Query: {query}\n"
+        f"Error: {error_type}: {error_message}\n\n"
+        "No sourced summary was gathered for this query."
+    )
+
+
+def is_web_research_failure_result(result: object) -> bool:
+    """Return whether a web research result is a failure marker."""
+    return isinstance(result, str) and result.startswith(WEB_RESEARCH_FAILURE_PREFIX)
+
+
+def get_successful_web_research_results(results: List[object]) -> List[str]:
+    """Return only web research summaries that contain gathered evidence."""
+    return [
+        result
+        for result in results
+        if isinstance(result, str) and not is_web_research_failure_result(result)
+    ]
+
+
 def resolve_urls(urls_to_resolve: Optional[List[Any]], id: int) -> Dict[str, str]:
     """
     Create a map of long source URLs to short placeholders with a unique id for each URL.
     Ensures each original URL gets a consistent shortened form while maintaining uniqueness.
     """
-    prefix = f"https://vertexaisearch.cloud.google.com/id/"
+    prefix = "https://vertexaisearch.cloud.google.com/id/"
     urls = []
     for site in urls_to_resolve or []:
         web = getattr(site, "web", None)

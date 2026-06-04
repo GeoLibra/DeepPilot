@@ -47,11 +47,7 @@ export function getPreviewMessageText(message: Message) {
 export function isInternalQueryMessage(message: Message) {
   if (message.type === "human") return false;
 
-  let text = getCleanMessageText(message).trim();
-  text = text
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
+  const text = stripJsonFence(getCleanMessageText(message));
 
   if (!text.startsWith("{")) return false;
   if (/^\{\s*["']query["']\s*:/.test(text)) return true;
@@ -60,8 +56,9 @@ export function isInternalQueryMessage(message: Message) {
   }
 
   try {
-    const parsed = JSON.parse(text);
+    const parsed = parseJsonObject(text);
     return (
+      !!parsed &&
       Array.isArray(parsed.query) &&
       parsed.query.every((query: unknown) => typeof query === "string") &&
       (parsed.rationale === undefined || typeof parsed.rationale === "string")
@@ -69,6 +66,24 @@ export function isInternalQueryMessage(message: Message) {
   } catch {
     return false;
   }
+}
+
+export function isInternalResearchPlanMessage(message: Message) {
+  if (message.type === "human") return false;
+
+  const text = stripJsonFence(getCleanMessageText(message));
+  const parsed = parseJsonObject(text);
+  if (!parsed) return false;
+
+  if (isResearchPlanReviewPayload(parsed)) return true;
+  return isResearchPlanPayload(parsed);
+}
+
+export function isInternalAgentMessage(message: Message) {
+  return (
+    isInternalQueryMessage(message) ||
+    isInternalResearchPlanMessage(message)
+  );
 }
 
 export function processMessageCitations(text: string) {
@@ -168,4 +183,49 @@ function isVisualBlock(value: unknown): value is import("@/types").VisualBlock {
 function asStringList(value: unknown) {
   if (!Array.isArray(value)) return undefined;
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function stripJsonFence(text: string) {
+  return text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
+function parseJsonObject(text: string): Record<string, unknown> | null {
+  if (!text.startsWith("{")) return null;
+
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function isResearchPlanReviewPayload(value: Record<string, unknown>) {
+  if (value.type !== "research_plan_review") return false;
+  return (
+    !!value.plan &&
+    typeof value.plan === "object" &&
+    value.plan !== null &&
+    !Array.isArray(value.plan) &&
+    isResearchPlanPayload(value.plan as Record<string, unknown>)
+  );
+}
+
+function isResearchPlanPayload(value: Record<string, unknown>) {
+  const hasPlanTitle = typeof value.title === "string";
+  const hasPlanObjective = typeof value.objective === "string";
+  const hasResearchSteps = asStringList(value.research_steps)?.length
+    ? true
+    : false;
+  const hasPlanSections =
+    asStringList(value.analysis_steps)?.length ||
+    asStringList(value.report_outline)?.length;
+
+  return hasPlanTitle && hasPlanObjective && (hasResearchSteps || !!hasPlanSections);
 }

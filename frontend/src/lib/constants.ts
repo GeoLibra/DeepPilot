@@ -40,3 +40,6 @@ export const DEFAULT_SESSION_TITLE = "Untitled session";
 export const SESSION_TITLE_LENGTH = 56;
 export const SESSION_PREVIEW_LENGTH = 120;
 export const RECENT_SESSION_RESTORE_MS = 12 * 60 * 60 * 1000;
+export const DEFAULT_RESEARCH_EFFORT = "medium";
+export const MESSAGE_COPY_FEEDBACK_MS = 2000;
+export const MESSAGE_ACTION_FEEDBACK_MS = 1800;

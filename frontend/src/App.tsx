@@ -5,6 +5,10 @@ import { ChatMessagesView } from "@/components/ChatMessagesView";
 import { SessionSidebar } from "@/components/SessionSidebar";
 import { getResearchPlanReviewInterrupt } from "@/lib/message-utils";
 import {
+  DEFAULT_MODEL_NAME,
+  DEFAULT_RESEARCH_EFFORT,
+} from "@/lib/constants";
+import {
   branchSessionFromMessage,
   copyMessageShareUrl,
   downloadMessageMarkdown,
@@ -143,6 +147,50 @@ export default function App() {
       handleSubmit(submittedInputValue, effort, model, displayMessages);
     },
     [handleSubmit, displayMessages]
+  );
+
+  const handleRegenerateMessage = useCallback(
+    (messageId: string, revisedText: string) => {
+      if (thread.isLoading) return;
+
+      const messageIndex = displayMessages.findIndex(
+        (message) => message.id === messageId
+      );
+      if (messageIndex < 0) return;
+
+      const sourceSession = sessions.find(
+        (session) => session.id === activeThreadId
+      );
+      const effort =
+        sourceSession?.effort ??
+        lastSubmittedRef.current?.effort ??
+        DEFAULT_RESEARCH_EFFORT;
+      const model =
+        sourceSession?.model ??
+        lastSubmittedRef.current?.model ??
+        DEFAULT_MODEL_NAME;
+      const messagesBeforeEditedTurn = displayMessages.slice(0, messageIndex);
+
+      setTargetMessageId(null);
+      setError(null);
+      setHistoricalActivities({});
+      handleSubmit(
+        revisedText,
+        effort,
+        model,
+        messagesBeforeEditedTurn
+      );
+    },
+    [
+      activeThreadId,
+      displayMessages,
+      handleSubmit,
+      lastSubmittedRef,
+      sessions,
+      setError,
+      setHistoricalActivities,
+      thread.isLoading,
+    ]
   );
 
   const handleNewSession = useCallback(() => {
@@ -364,6 +412,7 @@ export default function App() {
               onBranchMessage={handleBranchMessage}
               onShareMessage={handleShareMessage}
               onExportMessage={handleExportMessage}
+              onRegenerateMessage={handleRegenerateMessage}
               onApproveResearchPlan={handleApproveResearchPlan}
             />
           )}
